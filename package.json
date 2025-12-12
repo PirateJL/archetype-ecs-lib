@@ -1,0 +1,30 @@
+{
+  "name": "archetype-ecs-lib",
+  "version": "0.1.0",
+  "description": "An Archetype Entity Component System (AECS)",
+  "main": "./lib/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "lint": "tslint -c tslint.json src/**/*.ts",
+    "prepublish": "npm run build"
+  },
+  "keywords": [
+    "archetype",
+    "ecs",
+    "lib"
+  ],
+  "author": {
+    "name": "JDevs10"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "tslint": "^6.1.3",
+    "typescript": "^5.9.3"
+  },
+  "files": [
+    "./bin/*",
+    "./lib/*"
+  ],
+  "typings": "./lib/index.d.ts"
+}
