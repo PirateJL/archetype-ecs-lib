@@ -24,4 +24,30 @@ export class Archetype
         this.entities.push(e);
         return row;
     }
+
+    /**
+     * Swap-remove a row (O(1)). Returns the entity that moved into `row`, or null if none.
+     */
+    removeRow(row: number): Entity | null {
+        const last = this.entities.length - 1;
+
+        if (row < 0 || row > last) throw new Error(`removeRow out of range: ${row}`);
+
+        if (row !== last) {
+            const moved = this.entities[last];
+            this.entities[row] = moved;
+            this.entities.pop();
+
+            for (const [_, col] of this.cols) {
+                col[row] = col[last]!;
+                col.pop();
+            }
+            return moved;
+        }
+
+        // removing last
+        this.entities.pop();
+        for (const [, col] of this.cols) col.pop();
+        return null;
+    }
 }
