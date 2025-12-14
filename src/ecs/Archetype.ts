@@ -19,7 +19,7 @@ export class Archetype
      * Adds a new row. The caller must push per-column values in the same order.
      * Returns row index.
      */
-    addRow(e: Entity): number {
+    public addRow(e: Entity): number {
         const row = this.entities.length;
         this.entities.push(e);
         return row;
@@ -28,7 +28,7 @@ export class Archetype
     /**
      * Swap-remove a row (O(1)). Returns the entity that moved into `row`, or null if none.
      */
-    removeRow(row: number): Entity | null {
+    public removeRow(row: number): Entity | null {
         const last = this.entities.length - 1;
 
         if (row < 0 || row > last) throw new Error(`removeRow out of range: ${row}`);
@@ -49,5 +49,16 @@ export class Archetype
         this.entities.pop();
         for (const [, col] of this.cols) col.pop();
         return null;
+    }
+
+    public has(t: TypeId): boolean
+    {
+        return this.cols.has(t);
+    }
+
+    public column<T>(t: TypeId): Column<T> {
+        const c = this.cols.get(t);
+        if (!c) throw new Error(`Archetype ${this.id} missing column for type ${t}`);
+        return c as Column<T>;
     }
 }

@@ -6,7 +6,7 @@ export class EntityManager
     private _free: EntityId[] = [];
     readonly meta: EntityMeta[] = []; // indexed by EntityId; meta[0] unused
 
-    create(): Entity
+    public create(): Entity
     {
         let id: EntityId;
         if (this._free.length > 0) {
@@ -25,13 +25,13 @@ export class EntityManager
         return { id, gen: 1 };
     }
 
-    isAlive(e: Entity): boolean
+    public isAlive(e: Entity): boolean
     {
         const m = this.meta[e.id];
         return !!m && m.alive && m.gen === e.gen;
     }
 
-    kill(e: Entity): void
+    public kill(e: Entity): void
     {
         const m = this.meta[e.id];
         if (!m || !m.alive || m.gen !== e.gen) return;
