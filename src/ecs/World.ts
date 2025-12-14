@@ -17,7 +17,7 @@ export class World implements WorldI
     private readonly commands = new Commands();
     private _isIterating = false;
 
-    constructor() 
+    constructor()
     {
         // Archetype 0: empty signature
         const archetype0 = new Archetype(0, []);
@@ -80,7 +80,6 @@ export class World implements WorldI
         this._ensureNotIterating("despawn");
         this._removeFromArchetype(e);
         this.entities.kill(e);
-        console.log(this.entities);
     }
     //#endregion
 
@@ -135,7 +134,7 @@ export class World implements WorldI
 
         this._moveEntity(e, src, srcMeta.row, dst, (t: TypeId) => {
             if (t === tid) return value;
-                return src.column<any>(t)[srcMeta.row];
+            return src.column<any>(t)[srcMeta.row];
         });
     }
 
@@ -166,12 +165,12 @@ export class World implements WorldI
     public query(...ctors: ComponentCtor<any>[]): Iterable<any>
     {
         const need: TypeId[] = ctors.map(typeId).sort((a, b) => a - b);
-        const self = this;
 
-        function* gen() {
-            self._isIterating = true;
+        function* gen(world: World): IterableIterator<any>
+        {
+            world._isIterating = true;
             try {
-                for (const a of self.archetypes) {
+                for (const a of world.archetypes) {
                     if (!a) continue;
                     if (!signatureHasAll(a.sig, need)) continue;
 
@@ -185,16 +184,16 @@ export class World implements WorldI
                     }
                 }
             } finally {
-                self._isIterating = false;
+                world._isIterating = false;
             }
         }
 
-        return gen();
+        return gen(this);
     }
     //#endregion
 
     //#region ---------- Internals ----------
-    private _ensureNotIterating(op: string): void 
+    private _ensureNotIterating(op: string): void
     {
         if (this._isIterating) {
             throw new Error(`Cannot do structural change (${op}) while iterating. Use world.cmd() and flush at end of frame.`);
