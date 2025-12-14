@@ -26,9 +26,11 @@ export function subtractSignature(sig: Signature, remove: TypeId): TypeId[] {
  * True if `need` is a subset of `have`. Both must be sorted ascending.
  */
 export function signatureHasAll(have: Signature, need: Signature): boolean {
-    let i = 0, j = 0;
+    let i = 0;
+    let j = 0;
     while (i < have.length && j < need.length) {
-        const a = have[i], b = need[j];
+        const a = have[i]
+        const b = need[j];
         if (a === b) { i++; j++; continue; }
         if (a < b) { i++; continue; }
         return false; // a > b -> missing b
