@@ -7,7 +7,7 @@ class TransformComponent {
     position = new THREE.Vector3();
     rotation = new THREE.Euler();
     scale = new THREE.Vector3(1, 1, 1);
-    }
+}
 
 class ThreeObjectComponent {
     constructor(public obj: THREE.Object3D) {}
