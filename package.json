@@ -7,7 +7,6 @@
     "test": "jest --coverage",
     "build": "tsc",
     "lint": "tslint -c tslint.json src/**/*.ts",
-    "prepublish": "npm run build",
     "reload-packages": "rm -Rf node_modules && npm cache clean --force && npm ci"
   },
   "keywords": [
@@ -16,7 +15,7 @@
     "lib"
   ],
   "author": {
-    "name": "JDevs10"
+    "name": "PirateJL"
   },
   "license": "MIT",
   "dependencies": {
