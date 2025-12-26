@@ -38,7 +38,7 @@ The `gen` (generation) prevents using stale entity handles after despawn/reuse.
 
 ### Component
 
-A component is any class (or function token) used as a type key:
+A component is any class used as a type key:
 
 ```ts
 class Position { constructor(public x = 0, public y = 0) {} }
