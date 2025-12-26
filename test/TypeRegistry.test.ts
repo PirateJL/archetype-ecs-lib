@@ -15,12 +15,4 @@ describe("TypeRegistry.typeId", () => {
         const b = typeId(Velocity);
         expect(a).not.toBe(b);
     });
-
-    it("works with function tokens as well", () => {
-        const TokenA = () => undefined;
-        const TokenB = () => undefined;
-
-        expect(typeId(TokenA)).toBe(typeId(TokenA));
-        expect(typeId(TokenA)).not.toBe(typeId(TokenB));
-    });
 });

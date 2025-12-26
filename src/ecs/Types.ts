@@ -16,7 +16,7 @@ export type Column<T = unknown> = T[];
 
 export type Signature = ReadonlyArray<TypeId>;
 
-export type ComponentCtor<T> = { new (...args: any[]): T } | Function;
+export type ComponentCtor<T> = new (...args: any[]) => T;
 
 /**
  * Internal numeric id for a component "type".
