@@ -164,7 +164,6 @@ export class World implements WorldI
      */
     public query(...ctors: ComponentCtor<any>[]): Iterable<any>
     {
-        //const need: TypeId[] = ctors.map(typeId).sort((a, b) => a - b);
         const requested: TypeId[] = ctors.map(typeId); // preserve caller order
         const needSorted: TypeId[] = Array.from(new Set(requested)).sort((a, b) => a - b); // for signatureHasAll
 
@@ -177,7 +176,6 @@ export class World implements WorldI
                     // if (!signatureHasAll(a.sig, need)) continue;
                     if (!signatureHasAll(a.sig, needSorted)) continue;
 
-                    // const cols = need.map(t => a.column<any>(t));
                     const cols = requested.map(t => a.column<any>(t)); // return in requested order
                     for (let row = 0; row < a.entities.length; row++) {
                         const e = a.entities[row]!;
