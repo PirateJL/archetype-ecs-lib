@@ -97,6 +97,68 @@ describe("World", () => {
         ]);
     });
 
+    test("returns components in the same order as ctor arguments (2 components)", () => {
+        // Isolate module state so TypeRegistry's global TypeId counter resets for this test.
+        jest.isolateModules(() => {
+            const { World } = require("../src/ecs/World");
+
+            class Position {
+                constructor(public x = 0, public y = 0) {}
+            }
+            class Velocity {
+                constructor(public dx = 0, public dy = 0) {}
+            }
+
+            const world = new World();
+            const e = world.spawn();
+
+            // IMPORTANT: Register Velocity first so it likely gets a smaller TypeId than Position.
+            const vel = new Velocity(1, 2);
+            const pos = new Position(3, 4);
+            world.add(e, Velocity, vel);
+            world.add(e, Position, pos);
+
+            const rows: any[] = Array.from(world.query(Position, Velocity));
+            expect(rows).toHaveLength(1);
+
+            // Expected API contract:
+            // query(Position, Velocity) -> { e, c1: Position, c2: Velocity }
+            expect(rows[0].e).toBe(e);
+            expect(rows[0].c1).toBe(pos);
+            expect(rows[0].c2).toBe(vel);
+        });
+    });
+
+    test("returns components in the same order as ctor arguments (3 components)", () => {
+        jest.isolateModules(() => {
+            const { World } = require("../src/ecs/World");
+
+            class A { constructor(public v = "a") {} }
+            class B { constructor(public v = "b") {} }
+            class C { constructor(public v = "c") {} }
+
+            const world = new World();
+            const e = world.spawn();
+
+            // Register in a different order so TypeIds won't match requested query order.
+            const c = new C("C");
+            const b = new B("B");
+            const a = new A("A");
+            world.add(e, C, c);
+            world.add(e, B, b);
+            world.add(e, A, a);
+
+            const rows: any[] = Array.from(world.query(A, B, C));
+            expect(rows).toHaveLength(1);
+
+            // query(A, B, C) -> { e, c1: A, c2: B, c3: C }
+            expect(rows[0].e).toBe(e);
+            expect(rows[0].c1).toBe(a);
+            expect(rows[0].c2).toBe(b);
+            expect(rows[0].c3).toBe(c);
+        });
+    });
+
     it("prevents structural changes during query iteration", () => {
         const w = new World();
         const e1 = w.spawn();
