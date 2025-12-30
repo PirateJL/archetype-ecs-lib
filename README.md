@@ -16,10 +16,6 @@ Exports are defined in `index.ts`:
 
 ```bash
 npm i archetype-ecs-lib
-# or
-pnpm add archetype-ecs-lib
-# or
-yarn add archetype-ecs-lib
 ````
 
 ---
