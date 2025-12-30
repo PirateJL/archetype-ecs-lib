@@ -1,3 +1,5 @@
+![Coverage](./coverage.svg)
+
 # Archetype ECS Lib
 
 A tiny **archetype-based ECS** (Entity Component System) for TypeScript.
