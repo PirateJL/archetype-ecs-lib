@@ -9,6 +9,9 @@
     "lint": "tslint -c tslint.json src/**/*.ts",
     "reload-packages": "rm -Rf node_modules && npm cache clean --force && npm ci"
   },
+  "jest": {
+    "coverageReporters": ["json-summary", "lcov", "text-summary"]
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/PirateJL/archetype-ecs-lib.git"
