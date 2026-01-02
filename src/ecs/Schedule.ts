@@ -7,18 +7,32 @@ import type { SystemFn, WorldI } from "./Types";
 export class Schedule {
     private readonly phases = new Map<string, SystemFn[]>();
 
-    add(phase: string, fn: SystemFn): this {
+    add(phase: string, fn: SystemFn): this
+    {
         const list = this.phases.get(phase) ?? [];
         list.push(fn);
         this.phases.set(phase, list);
         return this;
     }
 
-    run(world: WorldI, dt: number, phaseOrder: string[]): void {
+    run(world: WorldI, dt: number, phaseOrder: string[]): void
+    {
         for (const phase of phaseOrder) {
             const list = this.phases.get(phase);
             if (!list) continue;
-            for (const fn of list) fn(world, dt);
+
+            for (const fn of list) {
+                try {
+                    fn(world, dt);
+                } catch (error: any) {
+                    const sysName = fn.name && fn.name.length > 0 ? fn.name : "<anonymous>";
+                    const msg = error.message !== undefined && typeof 'string' ? error.message : JSON.stringify(error);
+                    const e = new Error(`[phase=${phase} system=${sysName}] ${msg}`);
+                    (e as any).cause = error;
+                    throw e;
+                }
+            }
+
             // apply deferred commands between phases
             world.flush();
         }

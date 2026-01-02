@@ -3,7 +3,7 @@ import { Command, Commands } from "./Commands";
 import { EntityManager } from "./EntityManager";
 import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from "./Signature";
 import { typeId } from "./TypeRegistry";
-import { ComponentCtor, Entity, Signature, SystemFn, TypeId, WorldI } from "./Types";
+import { ComponentCtor, Entity, EntityMeta, Signature, SystemFn, TypeId, WorldI } from "./Types";
 
 export class World implements WorldI
 {
@@ -15,7 +15,7 @@ export class World implements WorldI
     private readonly systems: SystemFn[] = [];
 
     private readonly commands = new Commands();
-    private _isIterating = false;
+    private _iterateDepth: number = 0;
 
     constructor()
     {
@@ -26,7 +26,10 @@ export class World implements WorldI
     }
 
     /** Queue structural changes to apply safely after systems run. */
-    public cmd(): Commands { return this.commands; }
+    public cmd(): Commands
+    {
+        return this.commands;
+    }
 
     public addSystem(fn: SystemFn): this
     {
@@ -41,17 +44,18 @@ export class World implements WorldI
      */
     public update(dt: number): void
     {
-        this._isIterating = true;
+        this._iterateDepth++;
         try {
             for (const s of this.systems) s(this, dt);
         } finally {
-            this._isIterating = false;
+            this._iterateDepth--;
             this.flush();
         }
     }
 
     public flush(): void
     {
+        this._ensureNotIterating("flush");
         const ops = this.commands.drain();
         for (const op of ops) this._apply(op);
     }
@@ -76,7 +80,7 @@ export class World implements WorldI
 
     public despawn(e: Entity): void
     {
-        if (!this.entities.isAlive(e)) return;
+        this._assertAlive(e, 'despawn');
         this._ensureNotIterating("despawn");
         this._removeFromArchetype(e);
         this.entities.kill(e);
@@ -104,19 +108,18 @@ export class World implements WorldI
 
     public set<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
-        const meta = this.entities.meta[e.id];
+        const meta = this._assertAlive(e, `set(${this._formatCtor(ctor)})`);
 
-        if (!meta || !meta.alive || meta.gen !== e.gen) return;
         const tid = typeId(ctor);
         const a = this.archetypes[meta.arch]!;
 
-        if (!a.has(tid)) throw new Error("set() requires component to exist; use add()");
+        if (!a.has(tid)) throw new Error(`set(${this._formatCtor(ctor)}) requires component to exist on ${this._formatEntity(e)}; use add()`);
         a.column<T>(tid)[meta.row] = value;
     }
 
     public add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
-        if (!this.entities.isAlive(e)) return;
+        this._assertAlive(e, `add(${this._formatCtor(ctor)})`);
 
         this._ensureNotIterating("add");
         const tid = typeId(ctor);
@@ -140,7 +143,7 @@ export class World implements WorldI
 
     public remove<T>(e: Entity, ctor: ComponentCtor<T>): void
     {
-        if (!this.entities.isAlive(e)) return;
+        this._assertAlive(e, `remove(${this._formatCtor(ctor)})`);
         this._ensureNotIterating("remove");
         const tid = typeId(ctor);
         const srcMeta = this.entities.meta[e.id]!;
@@ -164,29 +167,41 @@ export class World implements WorldI
      */
     public query(...ctors: ComponentCtor<any>[]): Iterable<any>
     {
-        const requested: TypeId[] = ctors.map(typeId); // preserve caller order
-        const needSorted: TypeId[] = Array.from(new Set(requested)).sort((a, b) => a - b); // for signatureHasAll
+        // Preserve caller order for (c1,c2,c3,...) mapping.
+        const requested: TypeId[] = new Array(ctors.length);
+        for (let i = 0; i < ctors.length; i++) requested[i] = typeId(ctors[i]!);
+
+        // Same ids, but sorted + deduped for signatureHasAll().
+        const needSorted: TypeId[] = requested.slice();
+        needSorted.sort((a, b) => a - b);
+        let w = 0;
+        for (let i = 0; i < needSorted.length; i++) {
+            const v = needSorted[i]!;
+            if (i === 0 || v !== needSorted[w - 1]) needSorted[w++] = v;
+        }
+        needSorted.length = w;
 
         function* gen(world: World): IterableIterator<any>
         {
-            world._isIterating = true;
+            world._iterateDepth++;
             try {
                 for (const a of world.archetypes) {
                     if (!a) continue;
-                    // if (!signatureHasAll(a.sig, need)) continue;
                     if (!signatureHasAll(a.sig, needSorted)) continue;
 
-                    const cols = requested.map(t => a.column<any>(t)); // return in requested order
+                    // Return columns in requested order (c1,c2,c3...).
+                    const cols = new Array<any[]>(requested.length);
+                    for (let i = 0; i < requested.length; i++) cols[i] = a.column<any>(requested[i]!);
+
                     for (let row = 0; row < a.entities.length; row++) {
                         const e = a.entities[row]!;
-                        // yield object with stable field names c1,c2,c3...
                         const out: any = { e };
-                        for (let i = 0; i < cols.length; i++) out[`c${i + 1}`] = cols[i][row];
+                        for (let i = 0; i < cols.length; i++) out[`c${i + 1}`] = cols[i]![row];
                         yield out;
                     }
                 }
             } finally {
-                world._isIterating = false;
+                world._iterateDepth--;
             }
         }
 
@@ -197,7 +212,7 @@ export class World implements WorldI
     //#region ---------- Internals ----------
     private _ensureNotIterating(op: string): void
     {
-        if (this._isIterating) {
+        if (this._iterateDepth > 0) {
             throw new Error(`Cannot do structural change (${op}) while iterating. Use world.cmd() and flush at end of frame.`);
         }
     }
@@ -266,6 +281,29 @@ export class World implements WorldI
             case "remove":
                 return this.remove(op.e, op.ctor);
         }
+    }
+
+    private _formatEntity(e: Entity): string
+    {
+        return `e#${e.id}@${e.gen}`;
+    }
+
+    private _formatCtor(ctor: ComponentCtor<any>): string
+    {
+        const n = (ctor as any)?.name;
+        return n && n.length > 0 ? n : "<token>";
+    }
+
+    /**
+     * Throws an error if the entity is not alive
+     */
+    private _assertAlive(e: Entity, op: string): EntityMeta
+    {
+        const meta: EntityMeta = this.entities.meta[e.id];
+        if (!this.entities.isAlive(e)) {
+            throw new Error(`${op} on stale entity ${this._formatEntity(e)} (alive=${meta?.alive ?? false}, gen=${meta?.gen ?? "n/a"})`);
+        }
+        return meta;
     }
     //#endregion
 }
