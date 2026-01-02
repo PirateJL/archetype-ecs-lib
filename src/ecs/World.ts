@@ -52,6 +52,7 @@ export class World implements WorldI
 
     public flush(): void
     {
+        this._ensureNotIterating("flush");
         const ops = this.commands.drain();
         for (const op of ops) this._apply(op);
     }
