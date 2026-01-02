@@ -1,6 +1,6 @@
+import { Schedule, World } from "archetype-ecs-lib";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { World, Schedule } from "../src/index";
 
 /** ----- Components ----- */
 class TransformComponent {
