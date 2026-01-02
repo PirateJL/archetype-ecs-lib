@@ -108,8 +108,7 @@ export class World implements WorldI
 
     public set<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
-        const meta = this.entities.meta[e.id];
-        this._assertAlive(e, `set(${this._formatCtor(ctor)})`);
+        const meta = this._assertAlive(e, `set(${this._formatCtor(ctor)})`);
 
         const tid = typeId(ctor);
         const a = this.archetypes[meta.arch]!;
@@ -277,7 +276,8 @@ export class World implements WorldI
         return `e#${e.id}@${e.gen}`;
     }
 
-    private _formatCtor(ctor: ComponentCtor<any>): string {
+    private _formatCtor(ctor: ComponentCtor<any>): string
+    {
         const n = (ctor as any)?.name;
         return n && n.length > 0 ? n : "<token>";
     }
@@ -285,12 +285,13 @@ export class World implements WorldI
     /**
      * Throws an error if the entity is not alive
      */
-    private _assertAlive(e: Entity, op: string): Entity {
+    private _assertAlive(e: Entity, op: string): EntityMeta
+    {
         const meta: EntityMeta = this.entities.meta[e.id];
         if (!this.entities.isAlive(e)) {
             throw new Error(`${op} on stale entity ${this._formatEntity(e)} (alive=${meta?.alive ?? false}, gen=${meta?.gen ?? "n/a"})`);
         }
-        return e;
+        return meta;
     }
     //#endregion
 }
