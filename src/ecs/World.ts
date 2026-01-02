@@ -15,7 +15,7 @@ export class World implements WorldI
     private readonly systems: SystemFn[] = [];
 
     private readonly commands = new Commands();
-    private _isIterating = false;
+    private _iterateDepth: number = 0;
 
     constructor()
     {
@@ -41,11 +41,11 @@ export class World implements WorldI
      */
     public update(dt: number): void
     {
-        this._isIterating = true;
+        this._iterateDepth++;
         try {
             for (const s of this.systems) s(this, dt);
         } finally {
-            this._isIterating = false;
+            this._iterateDepth--;
             this.flush();
         }
     }
@@ -169,7 +169,7 @@ export class World implements WorldI
 
         function* gen(world: World): IterableIterator<any>
         {
-            world._isIterating = true;
+            world._iterateDepth++;
             try {
                 for (const a of world.archetypes) {
                     if (!a) continue;
@@ -186,7 +186,7 @@ export class World implements WorldI
                     }
                 }
             } finally {
-                world._isIterating = false;
+                world._iterateDepth--;
             }
         }
 
@@ -197,7 +197,7 @@ export class World implements WorldI
     //#region ---------- Internals ----------
     private _ensureNotIterating(op: string): void
     {
-        if (this._isIterating) {
+        if (this._iterateDepth > 0) {
             throw new Error(`Cannot do structural change (${op}) while iterating. Use world.cmd() and flush at end of frame.`);
         }
     }

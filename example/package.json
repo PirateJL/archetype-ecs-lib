@@ -14,6 +14,7 @@
     "vite": "^7.2.4"
   },
   "dependencies": {
+    "archetype-ecs-lib": "^0.4.1",
     "three": "^0.182.0"
   }
 }
