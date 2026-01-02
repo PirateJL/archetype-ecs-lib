@@ -1,4 +1,4 @@
-import { Schedule, World } from "archetype-ecs-lib";
+import { Schedule, World } from "../src/index";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
