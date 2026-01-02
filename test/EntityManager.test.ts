@@ -23,6 +23,5 @@ describe('Entity', () => {
         expect(entity).toBeDefined();
         world.despawn(entity);
         expect(world.isAlive(entity)).toBe(false);
-        
     });
 });

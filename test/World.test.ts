@@ -53,7 +53,18 @@ describe("World", () => {
         const w = new World();
         const e = w.spawn();
 
-        expect(() => w.set(e, Position, new Position(1, 1))).toThrow(/requires component to exist/i);
+        expect(() => w.set(e, Position, new Position(1, 1))).toThrow("set(Position) requires component to exist on e#1@1; use add()");
+    });
+
+    it("add/set/remove component should throw, if entity is not alive and get component should be undefined", () => {
+        const w = new World();
+        const e = w.spawn();
+        w.despawn(e);
+
+        expect(() => w.add(e, Position, new Position(1, 1))).toThrow(/add\(Position\) on stale entity/i);
+        expect(w.get(e, Position)).toBeUndefined();
+        expect(() => w.set(e, Position, new Position(9, 9))).toThrow(/set\(Position\) on stale entity/i);
+        expect(() => w.remove(e, Position)).toThrow(/remove\(Position\) on stale entity/i);
     });
 
     it("despawn makes entity dead and handle becomes invalid", () => {

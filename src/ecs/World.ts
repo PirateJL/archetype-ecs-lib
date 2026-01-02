@@ -3,7 +3,7 @@ import { Command, Commands } from "./Commands";
 import { EntityManager } from "./EntityManager";
 import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from "./Signature";
 import { typeId } from "./TypeRegistry";
-import { ComponentCtor, Entity, Signature, SystemFn, TypeId, WorldI } from "./Types";
+import { ComponentCtor, Entity, EntityMeta, Signature, SystemFn, TypeId, WorldI } from "./Types";
 
 export class World implements WorldI
 {
@@ -26,7 +26,10 @@ export class World implements WorldI
     }
 
     /** Queue structural changes to apply safely after systems run. */
-    public cmd(): Commands { return this.commands; }
+    public cmd(): Commands
+    {
+        return this.commands;
+    }
 
     public addSystem(fn: SystemFn): this
     {
@@ -77,7 +80,7 @@ export class World implements WorldI
 
     public despawn(e: Entity): void
     {
-        if (!this.entities.isAlive(e)) return;
+        this._assertAlive(e, 'despawn');
         this._ensureNotIterating("despawn");
         this._removeFromArchetype(e);
         this.entities.kill(e);
@@ -105,19 +108,18 @@ export class World implements WorldI
 
     public set<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
-        const meta = this.entities.meta[e.id];
+        const meta = this._assertAlive(e, `set(${this._formatCtor(ctor)})`);
 
-        if (!meta || !meta.alive || meta.gen !== e.gen) return;
         const tid = typeId(ctor);
         const a = this.archetypes[meta.arch]!;
 
-        if (!a.has(tid)) throw new Error("set() requires component to exist; use add()");
+        if (!a.has(tid)) throw new Error(`set(${this._formatCtor(ctor)}) requires component to exist on ${this._formatEntity(e)}; use add()`);
         a.column<T>(tid)[meta.row] = value;
     }
 
     public add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
-        if (!this.entities.isAlive(e)) return;
+        this._assertAlive(e, `add(${this._formatCtor(ctor)})`);
 
         this._ensureNotIterating("add");
         const tid = typeId(ctor);
@@ -141,7 +143,7 @@ export class World implements WorldI
 
     public remove<T>(e: Entity, ctor: ComponentCtor<T>): void
     {
-        if (!this.entities.isAlive(e)) return;
+        this._assertAlive(e, `remove(${this._formatCtor(ctor)})`);
         this._ensureNotIterating("remove");
         const tid = typeId(ctor);
         const srcMeta = this.entities.meta[e.id]!;
@@ -267,6 +269,29 @@ export class World implements WorldI
             case "remove":
                 return this.remove(op.e, op.ctor);
         }
+    }
+
+    private _formatEntity(e: Entity): string
+    {
+        return `e#${e.id}@${e.gen}`;
+    }
+
+    private _formatCtor(ctor: ComponentCtor<any>): string
+    {
+        const n = (ctor as any)?.name;
+        return n && n.length > 0 ? n : "<token>";
+    }
+
+    /**
+     * Throws an error if the entity is not alive
+     */
+    private _assertAlive(e: Entity, op: string): EntityMeta
+    {
+        const meta: EntityMeta = this.entities.meta[e.id];
+        if (!this.entities.isAlive(e)) {
+            throw new Error(`${op} on stale entity ${this._formatEntity(e)} (alive=${meta?.alive ?? false}, gen=${meta?.gen ?? "n/a"})`);
+        }
+        return meta;
     }
     //#endregion
 }
