@@ -165,8 +165,19 @@ export class World implements WorldI
      */
     public query(...ctors: ComponentCtor<any>[]): Iterable<any>
     {
-        const requested: TypeId[] = ctors.map(typeId); // preserve caller order
-        const needSorted: TypeId[] = Array.from(new Set(requested)).sort((a, b) => a - b); // for signatureHasAll
+        // Preserve caller order for (c1,c2,c3,...) mapping.
+        const requested: TypeId[] = new Array(ctors.length);
+        for (let i = 0; i < ctors.length; i++) requested[i] = typeId(ctors[i]!);
+
+        // Same ids, but sorted + deduped for signatureHasAll().
+        const needSorted: TypeId[] = requested.slice();
+        needSorted.sort((a, b) => a - b);
+        let w = 0;
+        for (let i = 0; i < needSorted.length; i++) {
+            const v = needSorted[i]!;
+            if (i === 0 || v !== needSorted[w - 1]) needSorted[w++] = v;
+        }
+        needSorted.length = w;
 
         function* gen(world: World): IterableIterator<any>
         {
@@ -174,15 +185,16 @@ export class World implements WorldI
             try {
                 for (const a of world.archetypes) {
                     if (!a) continue;
-                    // if (!signatureHasAll(a.sig, need)) continue;
                     if (!signatureHasAll(a.sig, needSorted)) continue;
 
-                    const cols = requested.map(t => a.column<any>(t)); // return in requested order
+                    // Return columns in requested order (c1,c2,c3...).
+                    const cols = new Array<any[]>(requested.length);
+                    for (let i = 0; i < requested.length; i++) cols[i] = a.column<any>(requested[i]!);
+
                     for (let row = 0; row < a.entities.length; row++) {
                         const e = a.entities[row]!;
-                        // yield object with stable field names c1,c2,c3...
                         const out: any = { e };
-                        for (let i = 0; i < cols.length; i++) out[`c${i + 1}`] = cols[i][row];
+                        for (let i = 0; i < cols.length; i++) out[`c${i + 1}`] = cols[i]![row];
                         yield out;
                     }
                 }

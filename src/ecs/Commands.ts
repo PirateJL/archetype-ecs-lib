@@ -7,7 +7,7 @@ export type Command =
     | { k: "remove"; e: Entity; ctor: ComponentCtor<any> };
 
 export class Commands {
-    private readonly q: Command[] = [];
+    private q: Command[] = [];
 
     public spawn(init?: (e: Entity) => void): void
     {
@@ -31,8 +31,8 @@ export class Commands {
 
     public drain(): Command[]
     {
-        const out = this.q.slice();
-        this.q.length = 0;
+        const out = this.q;
+        this.q = [];
         return out;
     }
 }
