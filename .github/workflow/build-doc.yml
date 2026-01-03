@@ -1,0 +1,25 @@
+name: Daily Build Docs
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Every day at midnight UTC
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build docs
+        run: mkdocs build --clean --config-file "compose.yml"
+      
+      - name: Commit and Push the build
+        run: |
+          git add -f public/
+
+          # Stop if no change
+          git diff --staged --quiet && { echo "No changes"; exit 0; }
+
+          git commit -m "Update docs"
+          git push origin gh-pages
