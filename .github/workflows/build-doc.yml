@@ -11,8 +11,11 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout default branch (source)
+      - name: Checkout default branch
         uses: actions/checkout@v4
+        run: |
+          git status
+          ls -rtl .
 
       - name: Set up Python
         uses: actions/setup-python@v5
