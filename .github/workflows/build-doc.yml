@@ -13,11 +13,6 @@ jobs:
     steps:
       - name: Checkout default branch
         uses: actions/checkout@v4
-      
-      - name: Checks
-        run: |
-          git status
-          ls -rtl .
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,7 +25,7 @@ jobs:
           pip install mkdocs mkdocs-material mkdocs-with-pdf mkdocs-git-committers-plugin-2 mkdocs-git-revision-date-localized-plugin
 
       - name: Build docs
-        run: mkdocs build --clean --config-file "compose.yml"
+        run: mkdocs build --clean --config-file "mkdocs.yml"
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
