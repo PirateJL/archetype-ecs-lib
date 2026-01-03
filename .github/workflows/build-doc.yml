@@ -30,13 +30,6 @@ jobs:
         run: |
           export ENABLE_PDF_EXPORT=1
           mkdocs build --clean --config-file "mkdocs.yml"
-      
-      # ---- Copy badge into the published site ----
-      - name: Add coverage badge to site output
-        run: |
-          cp docs/assets/coverage.svg public/coverage.svg
-          # alternative if you prefer:
-          # mkdir -p public/assets && cp coverage.svg public/assets/coverage.svg
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
