@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout default branch
         uses: actions/checkout@v4
+      
+      - name: Checks
         run: |
           git status
           ls -rtl .
