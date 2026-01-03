@@ -62,7 +62,7 @@ site_dir: "public"
 
 repo_name: Github
 repo_url: https://github.com/PirateJL/archetype-ecs-lib
-edit_uri: !ENV [EDIT_URI, "edit/gh-pages/"]
+edit_uri: !ENV [EDIT_URI, "blob/gh-pages/"]
 
 extra:
   version:
