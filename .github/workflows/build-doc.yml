@@ -1,27 +1,38 @@
 name: Daily Build Docs
 
 on:
-  push:
-    branches: [gh-pages]
   schedule:
-    - cron: '0 0 * * *'  # Every day at midnight UTC
+    - cron: '0 0 * * *'  # daily midnight UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  run-script:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout default branch (source)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install mkdocs
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocs-material mkdocs-with-pdf mkdocs-git-committers-plugin-2 mkdocs-git-revision-date-localized-plugin
 
       - name: Build docs
         run: mkdocs build --clean --config-file "compose.yml"
-      
-      - name: Commit and Push the build
-        run: |
-          git add -f public/
 
-          # Stop if no change
-          git diff --staged --quiet && { echo "No changes"; exit 0; }
-
-          git commit -m "Update docs"
-          git push origin gh-pages
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: public
