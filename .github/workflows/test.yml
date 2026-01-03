@@ -58,30 +58,36 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     permissions:
       contents: write
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.ref_name }}
+          ref: gh-pages
 
-      - uses: actions/download-artifact@v4
+      - name: Download coverage badge artifact into workspace
+        uses: actions/download-artifact@v4
         with:
           name: coverage-badge
+          path: .
 
-      - name: Commit and Push Coverage Badge to the triggering branch
+      - name: Commit and Push coverage.svg to gh-pages
         env:
-          GH_PAT: ${{ secrets.PIRATEJL_PAT }}
-          BRANCH: ${{ github.ref_name }}
-          GIT_AUTHOR_NAME: PirateJL
-          GIT_AUTHOR_EMAIL: PirateJL@users.noreply.github.com
-          GIT_COMMITTER_NAME: PirateJL
-          GIT_COMMITTER_EMAIL: PirateJL@users.noreply.github.com
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
         run: |
-          if [ -f "coverage.svg" ]; then
-            git add -f coverage.svg
-            git commit -m "Update coverage badge" || echo "No changes to commit"
-            git remote set-url origin "https://x-access-token:${GH_PAT}@github.com/${GITHUB_REPOSITORY}.git"
-            git push origin "HEAD:${BRANCH}"
-          else
-            echo "Coverage badge not found, skipping commit."
+          if [ ! -f "coverage.svg" ]; then
+            echo "coverage.svg not found, skipping."
+            exit 0
           fi
+
+          git add -f coverage.svg
+
+          # Stop if no change
+          git diff --staged --quiet && { echo "No changes"; exit 0; }
+
+          git commit -m "Update coverage badge [skip ci]"
+          git push origin gh-pages
