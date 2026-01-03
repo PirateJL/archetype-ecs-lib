@@ -27,7 +27,12 @@ jobs:
           pip install mkdocs mkdocs-material mkdocs-with-pdf mkdocs-git-committers-plugin-2 mkdocs-git-revision-date-localized-plugin
 
       - name: Build docs
+        env:
+          BRANCH: ${{ github.ref_name }}
         run: |
+          export PDF_LINK="/archetype-ecs-lib/assets/document.pdf"
+          export EDIT_URI="blob/${BRANCH}/"
+          export DOC_BRANCH=${BRANCH}
           export ENABLE_PDF_EXPORT=1
           mkdocs build --clean --config-file "mkdocs.yml"
 
