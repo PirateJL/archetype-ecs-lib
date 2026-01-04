@@ -3,7 +3,7 @@ site_author: PirateJL
 copyright: Copyright &copy; 2026 PirateJL
 theme:
   name: material
-  language: fr
+  language: en
   #logo: assets/logo.svg
   # favicon: assets/favicon.png
   features:
@@ -75,6 +75,9 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/
       name: Github
+    - icon: fontawesome/brands/npm
+      link: https://www.npmjs.com/package/archetype-ecs-lib
+      name: NPM Package
 
 plugins:
   with-pdf:
