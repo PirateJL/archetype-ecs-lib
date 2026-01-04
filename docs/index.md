@@ -28,6 +28,47 @@ This documentation is split into 4 parts :
 npm i archetype-ecs-lib
 ```
 
+## Quick start
+
+```ts
+import { World, Schedule } from "archetype-ecs-lib";
+
+class Position { constructor(public x = 0, public y = 0) {} }
+class Velocity { constructor(public x = 0, public y = 0) {} }
+
+const world = new World();
+
+// Spawn immediately
+const e = world.spawn();
+world.add(e, Position, new Position(0, 0));
+world.add(e, Velocity, new Velocity(1, 0));
+
+// A simple system
+world.addSystem((w: any, dt: number) => {
+  for (const { e, c1: pos, c2: vel } of w.query(Position, Velocity)) {
+    pos.x += vel.x * dt;
+    pos.y += vel.y * dt;
+
+    // Defer structural changes safely
+    if (pos.x > 10) w.cmd().despawn(e);
+  }
+});
+
+world.update(1 / 60);
+```
+
+> Note: `SystemFn` is typed as `(world: WorldI, dt) => void` where `WorldI` only requires `flush()`.  
+> In practice, you’ll typically use the concrete `World` API in systems (cast `world` or type your function accordingly).  
+> Checkout the [tutorials](./Tutorials/Tutorial-1—Your-first-ECS-World.md) for more!  
+
+---
+
+## Notes & limitations
+
+* This is intentionally minimal: **no parallelism**, no borrow-checking, no automatic conflict detection.
+* Query results use `c1/c2/...` fields for stability and speed; you can wrap this in helpers if you prefer tuple returns.
+* `TypeId` assignment is process-local and based on constructor identity (`WeakMap`).
+
 ---
 
 ## License
