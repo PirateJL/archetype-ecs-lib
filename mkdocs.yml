@@ -39,7 +39,7 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.highlight:
-      anchor_linenums: true
+      anchor_linenums: false
       linenums: true
       line_spans: __span
       line_anchors: __span
