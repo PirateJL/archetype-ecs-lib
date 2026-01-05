@@ -29,9 +29,6 @@ jobs:
             docs:
               - 'docs/**'
               - 'mkdocs.yml'
-              - 'README.md'
-              # add any other doc inputs that should trigger docs checks:
-              - 'requirements*.txt'
               - '.github/workflows/build-doc.yml'
 
       # This artifact is used by the workflow_run (Build Documentation) workflow
