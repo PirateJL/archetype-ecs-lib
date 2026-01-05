@@ -32,8 +32,6 @@ jobs:
           pip install \
             mkdocs \
             mkdocs-material \
-            mkdocs-git-committers-plugin-2 \
-            mkdocs-git-revision-date-localized-plugin \
             mkdocs-with-pdf
 
       - name: Build docs (fail on warnings)
