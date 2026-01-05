@@ -22,21 +22,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
 
-      - name: Install MkDocs + plugins
+      - name: Install mkdocs + plugins
         run: |
           python -m pip install --upgrade pip
-          # Adjust this list to match your mkdocs.yml plugins/theme
-          pip install \
-            mkdocs \
-            mkdocs-material \
-            mkdocs-git-revision-date-localized-plugin \
-            mkdocs-with-pdf
+          pip install mkdocs mkdocs-material mkdocs-with-pdf mkdocs-git-committers-plugin-2 mkdocs-git-revision-date-localized-plugin
 
+      - name: Build docs
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          export PDF_LINK="/archetype-ecs-lib/assets/document.pdf"
+          export EDIT_URI="blob/${BRANCH}/"
+          export DOC_BRANCH=${BRANCH}
+          export ENABLE_PDF_EXPORT=1
+          mkdocs build --clean --config-file "mkdocs.yml"
+      
       - name: Build docs (fail on warnings)
         env:
           BRANCH: FOR_TEST
