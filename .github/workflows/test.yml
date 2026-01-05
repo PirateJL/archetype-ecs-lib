@@ -13,6 +13,39 @@ on:
       - coverage.svg
 
 jobs:
+  documentation-checks:
+    name: Documentation checks (MkDocs strict)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install MkDocs + plugins
+        run: |
+          python -m pip install --upgrade pip
+          # Adjust this list to match your mkdocs.yml plugins/theme
+          pip install \
+            mkdocs \
+            mkdocs-material \
+            mkdocs-git-committers-plugin-2 \
+            mkdocs-git-revision-date-localized-plugin \
+            mkdocs-with-pdf
+
+      - name: Build docs (fail on warnings)
+        env:
+          BRANCH: FOR_TEST
+        run: |
+          export PDF_LINK="/archetype-ecs-lib/assets/document.pdf"
+          export EDIT_URI="blob/${BRANCH}/"
+          export DOC_BRANCH=${BRANCH}
+          export ENABLE_PDF_EXPORT=1
+          mkdocs build --clean --strict --config-file mkdocs.yml
+
   test:
     runs-on: ubuntu-latest
     strategy:
