@@ -27,8 +27,27 @@ jobs:
         with:
           ref: master
           fetch-depth: 0
+      
+      - name: Download docs-changed flag
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-changed
+          path: ./
+          run-id: ${{ github.event.workflow_run.id }}
+      
+      - name: Read docs-changed flag
+        id: docsflag
+        run: |
+          DOCS_CHANGED="$(cat docs_changed.txt || echo false)"
+          echo "docs_changed=$DOCS_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "DOCS_CHANGED=$DOCS_CHANGED" >> "$GITHUB_ENV"
 
+      - name: Skip (no docs changes)
+        if: env.DOCS_CHANGED != 'true'
+        run: echo "No docs changes detected; skipping docs build & deploy."
+      
       - name: Download coverage badge from triggering run
+        if: env.DOCS_CHANGED == 'true'
         uses: actions/download-artifact@v4
         with:
           name: coverage-badge
@@ -37,16 +56,19 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
+        if: env.DOCS_CHANGED == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
 
       - name: Install mkdocs + plugins
+        if: env.DOCS_CHANGED == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install mkdocs mkdocs-material mkdocs-with-pdf mkdocs-git-committers-plugin-2 mkdocs-git-revision-date-localized-plugin
 
       - name: Build docs
+        if: env.DOCS_CHANGED == 'true'
         env:
           BRANCH: master
         run: |
@@ -57,6 +79,7 @@ jobs:
           mkdocs build --clean --strict --config-file "mkdocs.yml"
 
       - name: Deploy to gh-pages
+        if: env.DOCS_CHANGED == 'true'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
