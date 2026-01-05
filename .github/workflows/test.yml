@@ -9,7 +9,44 @@ on:
   pull_request:
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_changed: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # For push events, use the push "before..after" range
+          base: ${{ github.event_name == 'push' && github.event.before || '' }}
+          ref:  ${{ github.sha }}
+          filters: |
+            docs:
+              - 'docs/**'
+              - 'mkdocs.yml'
+              - 'README.md'
+              # add any other doc inputs that should trigger docs checks:
+              - 'requirements*.txt'
+              - '.github/workflows/build-doc.yml'
+
+      # This artifact is used by the workflow_run (Build Documentation) workflow
+      - name: Save docs-changed flag
+        run: echo "${{ steps.filter.outputs.docs }}" > docs_changed.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docs-changed
+          path: docs_changed.txt
+          retention-days: 1
+  
   documentation-checks:
+    needs: changes
+    if: needs.changes.outputs.docs_changed == 'true'
     name: Documentation checks (MkDocs strict)
     runs-on: ubuntu-latest
     steps:
