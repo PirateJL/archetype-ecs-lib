@@ -1,0 +1,249 @@
+# World
+
+## Purpose
+
+`World` is the **central authority** of the ECS.
+It owns and coordinates:
+
+* entity lifecycle
+* archetypes and component storage
+* queries
+* deferred structural commands
+* system execution
+
+There is **exactly one `World` instance per ECS context**.
+
+---
+
+## Construction
+
+```ts
+const world = new World();
+```
+
+### Side effects
+
+* Initializes an empty entity pool
+* Initializes archetype storage
+* Initializes command buffer
+* Initializes system list
+
+---
+
+## Entity Lifecycle API
+
+### `spawn(): Entity`
+
+Creates a new entity immediately.
+
+* Allocates a new entity id
+* Marks entity as alive
+* Places entity in the empty archetype
+
+```ts
+const e = world.spawn();
+```
+
+---
+
+### `despawn(e: Entity): void`
+
+Immediately removes an entity.
+
+* Invalidates the entity handle (`gen` mismatch)
+* Removes the entity from its archetype
+* Frees the slot for reuse
+
+Throws if:
+
+* entity is stale or not alive
+
+---
+
+### `isAlive(e: Entity): boolean`
+
+Checks whether an entity handle is still valid.
+
+```ts
+if (world.isAlive(e)) { ... }
+```
+
+---
+
+## Component API
+
+All component types are identified by **constructor identity**.
+
+### `has<T>(e: Entity, ctor: ComponentCtor<T>): boolean`
+
+Checks if an entity has a component.
+
+---
+
+### `get<T>(e: Entity, ctor: ComponentCtor<T>): T | undefined`
+
+Returns the component value or `undefined`.
+
+* Does **not** throw if missing
+* Returns `undefined` for stale entities
+
+---
+
+### `add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void`
+
+Adds a component to an entity.
+
+* **Structural change**
+* Moves the entity to a different archetype
+
+Throws if:
+
+* entity is stale
+* component already exists
+* structural changes are forbidden (see iteration rules)
+
+---
+
+### `remove<T>(e: Entity, ctor: ComponentCtor<T>): void`
+
+Removes a component.
+
+* **Structural change**
+* Moves the entity to a different archetype
+
+Throws if:
+
+* entity is stale
+* component does not exist
+* structural changes are forbidden
+
+---
+
+### `set<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void`
+
+Updates an existing component value.
+
+* **Non-structural**
+* Does not change archetypes
+
+Throws if:
+
+* entity is stale
+* component does not exist
+
+---
+
+## Query API
+
+### `query(...ctors): Iterable<QueryRow>`
+
+Iterates entities that contain **all requested components**.
+
+```ts
+for (const { e, c1, c2 } of world.query(A, B)) {
+    // e  -> Entity
+    // c1 -> A
+    // c2 -> B
+}
+```
+
+#### Properties
+
+* Iterates archetypes, not entities
+* Components are returned as `c1`, `c2`, … in **argument order**
+* Query iteration **locks structural changes**
+
+---
+
+## Structural Change Rules
+
+While iterating a query or running systems:
+
+* ❌ `spawn`, `despawn`, `add`, `remove` are forbidden
+* ✔️ `get`, `set`, `has` are allowed
+
+Violations throw a runtime error.
+
+---
+
+## Command Buffer API
+
+### `cmd(): Commands`
+
+Returns a command buffer for **deferred structural changes**.
+
+```ts
+world.cmd().despawn(e);
+```
+
+Commands are **queued**, not applied immediately.
+
+---
+
+### `flush(): void`
+
+Applies all queued commands.
+
+* Safe to call after queries
+* Automatically called by `update()` and `Schedule`
+
+---
+
+## System API
+
+### `addSystem(fn: SystemFn): this`
+
+Registers a system.
+
+```ts
+world.addSystem((w, dt) => { ... });
+```
+
+Systems are executed **in insertion order**.
+
+---
+
+### `update(dt: number): void`
+
+Runs one ECS frame.
+
+Execution order:
+
+1. Run all systems
+2. Flush deferred commands
+
+```ts
+world.update(1 / 60);
+```
+
+---
+
+## Internal Guarantees
+
+* Archetypes use **Structure of Arrays (SoA)**
+* Entity handles are generation-safe
+* Component lookups are O(1) per archetype row
+* Queries are archetype-filtered, not entity-scanned
+
+---
+
+## Error Conditions (Summary)
+
+| Operation    | Error Condition          |
+| ------------ | ------------------------ |
+| add / remove | during query iteration   |
+| add          | component already exists |
+| remove       | component missing        |
+| set          | component missing        |
+| any          | stale entity             |
+
+---
+
+## Design Constraints
+
+* Single-threaded
+* No automatic conflict detection
+* No parallel systems
+* No borrowing model
+
+These are **intentional** for simplicity and predictability.

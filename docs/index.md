@@ -1,28 +1,32 @@
-![Coverage](https://raw.githubusercontent.com/PirateJL/archetype-ecs-lib/refs/heads/gh-pages/assets/coverage.svg)
+---
+title: Home
+hide:
+  - navigation
+  - toc
+---
+
+![Coverage](./assets/coverage.svg)
 
 # Archetype ECS Lib
 
-A tiny **archetype-based ECS** (Entity Component System) for TypeScript.
+A tiny **archetype based ECS** (Entity Component System) for TypeScript.
 
-- **Archetypes (tables)** store entities in a **SoA** layout (one column per component type).
-- **Queries** iterate matching archetypes efficiently.
-- **Commands** let you **defer structural changes** (spawn/despawn/add/remove) safely.
-- A minimal **Schedule** runs systems by phases and flushes commands between phases.
+This documentation is split into 4 parts :
 
-Exports are defined in `index.ts`:
-- `Types`, `TypeRegistry`, `Commands`, `World`, `Schedule`
-
-> :exclamation: The full documentation is at [https://piratejl.github.io/archetype-ecs-lib/](https://piratejl.github.io/archetype-ecs-lib/)
+* **[Explanation](./Explanation/ecs-and-the-game-loop.md)** of the general operation of the library
+* Find information in the **[Reference](./Reference/archetypes.md)**
+* Target a specific goal using the **[How-To Guides](./How-To%20Guides/How-to-add-remove-components-at-runtime.md)**
+* Learn through the **[Tutorials](./Tutorials/Tutorial-1—Your-first-ECS-World.md)**: step-by-step guidance
 
 ---
 
 ## Install
 
+> [NPM package available here](https://www.npmjs.com/package/archetype-ecs-lib)
+
 ```bash
 npm i archetype-ecs-lib
 ```
-
----
 
 ## Quick start
 
@@ -53,8 +57,9 @@ world.addSystem((w: any, dt: number) => {
 world.update(1 / 60);
 ```
 
-> Note: `SystemFn` is typed as `(world: WorldI, dt) => void` where `WorldI` only requires `flush()`.
-> In practice, you’ll typically use the concrete `World` API in systems (cast `world` or type your function accordingly).
+> Note: `SystemFn` is typed as `(world: WorldI, dt) => void` where `WorldI` only requires `flush()`.  
+> In practice, you’ll typically use the concrete `World` API in systems (cast `world` or type your function accordingly).  
+> Checkout the [tutorials](./Tutorials/Tutorial-1—Your-first-ECS-World.md) for more!  
 
 ---
 
