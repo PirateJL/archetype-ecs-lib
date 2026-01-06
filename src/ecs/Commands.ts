@@ -1,4 +1,4 @@
-import type { ComponentCtor, Entity } from "./Types";
+import type { CommandsApi, ComponentCtor, Entity } from "./Types";
 
 export type Command =
     | { k: "spawn"; init?: (e: Entity) => void }
@@ -6,7 +6,8 @@ export type Command =
     | { k: "add"; e: Entity; ctor: ComponentCtor<any>; value: any }
     | { k: "remove"; e: Entity; ctor: ComponentCtor<any> };
 
-export class Commands {
+export class Commands implements CommandsApi
+{
     private q: Command[] = [];
 
     public spawn(init?: (e: Entity) => void): void

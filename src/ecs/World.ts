@@ -3,9 +3,23 @@ import { Command, Commands } from "./Commands";
 import { EntityManager } from "./EntityManager";
 import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from "./Signature";
 import { typeId } from "./TypeRegistry";
-import { ComponentCtor, Entity, EntityMeta, QueryRow1, QueryRow2, QueryRow3, QueryRow4, QueryRow5, QueryRow6, Signature, SystemFn, TypeId, WorldI } from "./Types";
+import {
+    ComponentCtor,
+    Entity,
+    EntityMeta,
+    QueryRow1,
+    QueryRow2,
+    QueryRow3,
+    QueryRow4,
+    QueryRow5,
+    QueryRow6,
+    Signature,
+    SystemFn,
+    TypeId,
+    WorldApi
+} from "./Types";
 
-export class World implements WorldI
+export class World implements WorldApi
 {
     private readonly entities = new EntityManager();
 
