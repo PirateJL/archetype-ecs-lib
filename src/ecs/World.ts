@@ -5,6 +5,7 @@ import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from
 import { typeId } from "./TypeRegistry";
 import {
     ComponentCtor,
+    ComponentCtorBundleItem,
     Entity,
     EntityMeta,
     QueryRow1,
@@ -70,8 +71,16 @@ export class World implements WorldApi
     public flush(): void
     {
         this._ensureNotIterating("flush");
-        const ops = this.commands.drain();
-        for (const op of ops) this._apply(op);
+        // const ops = this.commands.drain();
+        // for (const op of ops) this._apply(op);
+
+        // Apply commands until queue is empty. This allows spawn(init) to enqueue add/remove
+        // operations that will be applied during the same flush.
+        while (true) {
+            const ops = this.commands.drain();
+            if (ops.length === 0) break;
+            for (const op of ops) this._apply(op);
+        }
     }
 
     //#region ---------- Entity lifecycle ----------
@@ -87,6 +96,13 @@ export class World implements WorldApi
         return entity;
     }
 
+    public spawnBundle(...items: ComponentCtorBundleItem[]): Entity
+    {
+        const e = this.spawn();
+        for (const [ctor, value] of items) this.add(e, ctor as any, value as any);
+        return e;
+    }
+
     public isAlive(e: Entity): boolean
     {
         return this.entities.isAlive(e);
@@ -98,6 +114,11 @@ export class World implements WorldApi
         this._ensureNotIterating("despawn");
         this._removeFromArchetype(e);
         this.entities.kill(e);
+    }
+
+    public despawnMany(entities: Entity[]): void
+    {
+        for(const e of entities) this.despawn(e);
     }
     //#endregion
 
@@ -155,6 +176,11 @@ export class World implements WorldApi
         });
     }
 
+    public addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void
+    {
+        for (const [ctor, value] of items) this.add(e, ctor as any, value as any);
+    }
+
     public remove<T>(e: Entity, ctor: ComponentCtor<T>): void
     {
         this._assertAlive(e, `remove(${this._formatCtor(ctor)})`);
@@ -171,6 +197,11 @@ export class World implements WorldApi
             // copy all but removed, but dstSig guarantees t != tid
             return src.column<any>(t)[srcMeta.row];
         });
+    }
+
+    public removeMany(e: Entity, ...ctors: ComponentCtor<any>[]): void
+    {
+        for (const ctor of ctors) this.remove(e, ctor);
     }
     //#endregion
 

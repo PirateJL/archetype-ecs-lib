@@ -18,6 +18,8 @@ export type Signature = ReadonlyArray<TypeId>;
 
 export type ComponentCtor<T> = new (...args: any[]) => T;
 
+export type ComponentCtorBundleItem<T = any> = readonly [ComponentCtor<T>, T];
+
 /**
  * Internal numeric id for a component "type".
  * (We keep it numeric so signatures can be sorted quickly.)
