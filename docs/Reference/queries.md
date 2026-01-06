@@ -8,7 +8,7 @@ A **Query** iterates all entities that have **all required component types**, ef
 
 ## API
 
-### `world.query(...ctors): Iterable<QueryRow>`
+### `world.query(...ctors): Iterable<any>`
 
 `ctors` is a list of component constructors (types) you want to require.
 

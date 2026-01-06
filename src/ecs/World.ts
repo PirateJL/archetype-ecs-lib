@@ -3,7 +3,7 @@ import { Command, Commands } from "./Commands";
 import { EntityManager } from "./EntityManager";
 import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from "./Signature";
 import { typeId } from "./TypeRegistry";
-import { ComponentCtor, Entity, EntityMeta, Signature, SystemFn, TypeId, WorldI } from "./Types";
+import { ComponentCtor, Entity, EntityMeta, QueryRow1, QueryRow2, QueryRow3, QueryRow4, QueryRow5, QueryRow6, Signature, SystemFn, TypeId, WorldI } from "./Types";
 
 export class World implements WorldI
 {
@@ -165,6 +165,12 @@ export class World implements WorldI
      * Query all entities having all required component types.
      * Iterates archetypes (tables) and yields SoA columns for cache-friendly loops.
      */
+    public query<A>(c1: ComponentCtor<A>): Iterable<QueryRow1<A>>;
+    public query<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryRow2<A, B>>;
+    public query<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryRow3<A, B, C>>;
+    public query<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryRow4<A, B, C, D>>;
+    public query<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryRow5<A, B, C, D, E>>;
+    public query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryRow6<A, B, C, D, E, F>>;
     public query(...ctors: ComponentCtor<any>[]): Iterable<any>
     {
         // Preserve caller order for (c1,c2,c3,...) mapping.
