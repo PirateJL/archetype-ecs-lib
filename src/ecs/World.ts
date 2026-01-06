@@ -118,7 +118,7 @@ export class World implements WorldApi
 
     public despawnMany(entities: Entity[]): void
     {
-        for(const e of entities) this.despawn(e);
+        for (const e of entities) this.despawn(e);
     }
     //#endregion
 
