@@ -7,7 +7,7 @@ Outcome: you’ll write real gameplay logic as **systems**: query components, mu
 ## 1) Create `tutorial3.ts`
 
 ```ts
-import { World, Schedule } from "archetype-ecs-lib";
+import { World, WorldApi, Schedule, SystemFn } from "archetype-ecs-lib";
 ```
 
 Your lib exports `World` and `Schedule`. 
@@ -52,7 +52,7 @@ A system is a function called like:
 
 * `(world, dt) => void`
 
-Systems are added using `world.addSystem()` like `world.addSystem((w: any, dt: number) => ...)`. 
+Systems are added using `world.addSystem()` like `world.addSystem((w: WorldApi, dt: number) => ...)`. 
 
 In this tutorial we’ll register systems on a `Schedule` (phases), but the function shape is the same.
 
@@ -63,7 +63,7 @@ In this tutorial we’ll register systems on a `Schedule` (phases), but the func
 This system queries `Position + Velocity` and updates positions.
 
 ```ts
-function movementSystem(w: any, dt: number) {
+const movementSystem: SystemFn = (w: WorldApi, dt: number) => {
   for (const { c1: pos, c2: vel } of w.query(Position, Velocity)) {
     pos.x += vel.x * dt;
     pos.y += vel.y * dt;
@@ -80,7 +80,7 @@ Query rows provide `{ e, c1, c2, ... }` in the same order as the query arguments
 Despawning is a **structural change**, so do it through `cmd()` inside systems.
 
 ```ts
-function lifetimeSystem(w: any, dt: number) {
+const lifetimeSystem: SystemFn = (w: WorldApi, dt: number) => {
   for (const { e, c1: life } of w.query(Lifetime)) {
     life.seconds -= dt;
     if (life.seconds <= 0) {
@@ -97,7 +97,7 @@ function lifetimeSystem(w: any, dt: number) {
 We’ll print positions so you can see it running. This does not do structural changes.
 
 ```ts
-function logSystem(w: any, frame: number) {
+const logSystem: SystemFn = (w: WorldApi, dt: number) => {
   const lines: string[] = [];
   for (const { e, c1: pos } of w.query(Position)) {
     lines.push(`e${e.id} @ (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)})`);
@@ -122,7 +122,7 @@ sched.add("sim", lifetimeSystem);
 
 // log in a separate phase so structural changes are already flushed
 let frameNo = 0;
-sched.add("cleanup", (w: any) => {
+sched.add("cleanup", (w: WorldApi) => {
   frameNo++;
   logSystem(w, frameNo);
 });
@@ -148,7 +148,7 @@ for (let i = 0; i < 20; i++) {
 ## 10) Full file (copy/paste)
 
 ```ts
-import { World, Schedule } from "archetype-ecs-lib";
+import { World, WorldApi Schedule, SystemFn } from "archetype-ecs-lib";
 
 class Position { constructor(public x = 0, public y = 0) {} }
 class Velocity { constructor(public x = 0, public y = 0) {} }
@@ -168,21 +168,21 @@ spawnMover(0, 0,  2, 0, 1.2);
 spawnMover(0, 1,  1, 0, 2.5);
 spawnMover(0, 2, -1, 0, 0.8);
 
-function movementSystem(w: any, dt: number) {
+const movementSystem: SystemFn = (w: WorldApi, dt: number) => {
   for (const { c1: pos, c2: vel } of w.query(Position, Velocity)) {
     pos.x += vel.x * dt;
     pos.y += vel.y * dt;
   }
 }
 
-function lifetimeSystem(w: any, dt: number) {
+const lifetimeSystem: SystemFn = (w: WorldApi, dt: number) => {
   for (const { e, c1: life } of w.query(Lifetime)) {
     life.seconds -= dt;
     if (life.seconds <= 0) w.cmd().despawn(e);
   }
 }
 
-function logSystem(w: any, frame: number) {
+const logSystem: SystemFn = (w: WorldApi, dt: number) => {
   const lines: string[] = [];
   for (const { e, c1: pos } of w.query(Position)) {
     lines.push(`e${e.id} @ (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)})`);
@@ -195,7 +195,7 @@ sched.add("sim", movementSystem);
 sched.add("sim", lifetimeSystem);
 
 let frameNo = 0;
-sched.add("cleanup", (w: any) => {
+sched.add("cleanup", (w: WorldApi) => {
   frameNo++;
   logSystem(w, frameNo);
 });

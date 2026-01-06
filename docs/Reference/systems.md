@@ -12,11 +12,9 @@ A **system** is a function executed by the ECS to update simulation state (usual
 
 A system is a function with the signature:
 
-* `(world: WorldI, dt: number) => void`
+* `(world: WorldApi, dt: number) => void`
 
-`WorldI` is the minimal interface required by systems; it includes `flush()` (the concrete `World` implements more). 
-
-> In practice, examples call `query()` and `cmd()` inside systems, which are available on the concrete `World`. 
+> In practice, examples call `query()` and `cmd()` inside systems, which are available through `WorldApi`. 
 
 ---
 

@@ -1,15 +1,40 @@
-import { Schedule } from '../src/ecs/Schedule';
+import { Schedule, WorldApi } from '../src/index';
 
 describe("Schedule", () => {
     test("runs systems by phase order and flushes between phases that exist", () => {
         const sched = new Schedule();
 
         const calls: string[] = [];
-        const world = { flush: jest.fn(() => calls.push("flush")) };
+        // Minimal WorldApi stub for Schedule + SystemFn typing
+        const world: WorldApi = {
+            flush: jest.fn(() => calls.push("flush")),
 
-        sched.add("a", (_w: any, _dt: number) => calls.push("a1"));
-        sched.add("a", (_w: any, _dt: number) => calls.push("a2"));
-        sched.add("b", (_w: any, _dt: number) => calls.push("b1"));
+            // --- systems won't use these in this test, but WorldApi requires them ---
+            cmd: () => ({
+                spawn: jest.fn(),
+                despawn: jest.fn(),
+                add: jest.fn(),
+                remove: jest.fn(),
+            }),
+
+            spawn: () => ({ id: 0, gen: 0 }),
+            despawn: jest.fn(),
+            isAlive: jest.fn(() => true),
+
+            has: jest.fn(() => false),
+            get: jest.fn(() => undefined),
+            set: jest.fn(),
+            add: jest.fn(),
+            remove: jest.fn(),
+
+            query: jest.fn(function* () {
+                // empty iterable
+            }),
+        };
+
+        sched.add("a", (_w: WorldApi, _dt: number) => calls.push("a1"));
+        sched.add("a", (_w: WorldApi, _dt: number) => calls.push("a2"));
+        sched.add("b", (_w: WorldApi, _dt: number) => calls.push("b1"));
 
         sched.run(world, 0.016, ["a", "b", "c"]); // c has no systems
 
