@@ -1,4 +1,4 @@
-import { Schedule, World } from "../src/index";
+import { Schedule, World, type SystemFn, type WorldApi } from "../src/index";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
@@ -73,26 +73,22 @@ world.add(cube, SpinComponent, new SpinComponent(1.8));
 world.add(cube, ThreeObjectComponent, new ThreeObjectComponent(cubeMesh));
 
 /** ----- Systems ----- */
-// NOTE: your SystemFn is typed with WorldI (minimal), so we cast to World to use query().
-const spinSystem = (w: any, dt: number) => {
-    const world = w as World;
-    for (const { c1: tr, c2: spin } of world.query(TransformComponent, SpinComponent)) {
+const spinSystem: SystemFn = (w, dt) => {
+    for (const { c1: tr, c2: spin } of w.query(TransformComponent, SpinComponent)) {
         tr.rotation.y += spin.yRadPerSec * dt;
     }
 };
 
-const syncTransformToThreeSystem = (w: any) => {
-    const world = w as World;
-    for (const { c1: tr, c2: obj } of world.query(TransformComponent, ThreeObjectComponent)) {
+const syncTransformToThreeSystem: SystemFn = (w) => {
+    for (const { c1: tr, c2: obj } of w.query(TransformComponent, ThreeObjectComponent)) {
         obj.obj.position.copy(tr.position);
         obj.obj.rotation.copy(tr.rotation);
         obj.obj.scale.copy(tr.scale);
     }
 };
 
-const renderSystem = (w: any) => {
-    const world = w as World;
-    for (const { c1: ctx } of world.query(RenderContextComponent)) {
+const renderSystem: SystemFn = (w) => {
+    for (const { c1: ctx } of w.query(RenderContextComponent)) {
         ctx.controls.update();
         ctx.renderer.render(ctx.scene, ctx.camera);
         break; // singleton

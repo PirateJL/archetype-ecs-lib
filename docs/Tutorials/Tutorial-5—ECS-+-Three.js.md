@@ -56,7 +56,7 @@ Create `src/main.ts`:
 
 ```ts
 import * as THREE from "three";
-import { World, Schedule } from "archetype-ecs-lib";
+import { World, WorldApi, Schedule, SystemFn } from "archetype-ecs-lib";
 
 // --------------------
 // Components (data only)
@@ -121,7 +121,7 @@ function makeObject(r: Renderable): THREE.Object3D {
 let pendingClicks = 0;
 window.addEventListener("pointerdown", () => pendingClicks++);
 
-function inputPhase(w: any) {
+const inputPhase: SystemFn = (w: WorldApi) => {
   if (pendingClicks <= 0) return;
 
   const cmd = w.cmd();
@@ -147,7 +147,7 @@ function inputPhase(w: any) {
 // --------------------
 // Simulation: movement
 // --------------------
-function movementSystem(w: any, dt: number) {
+const movementSystem: SystemFn = (w: WorldApi, dt: number) => {
   for (const { c1: pos, c2: vel } of w.query(Position, Velocity)) {
     pos.x += vel.x * dt;
     pos.y += vel.y * dt;
@@ -163,7 +163,7 @@ function movementSystem(w: any, dt: number) {
 // --------------------
 // Simulation: lifetime -> despawn (deferred)
 // --------------------
-function lifetimeSystem(w: any, dt: number) {
+const lifetimeSystem: SystemFn = (w: WorldApi, dt: number) => {
   for (const { e, c1: life } of w.query(Lifetime)) {
     life.seconds -= dt;
     if (life.seconds <= 0) {
@@ -175,7 +175,7 @@ function lifetimeSystem(w: any, dt: number) {
 // --------------------
 // Render phase: ECS -> Three.js sync + remove despawned
 // --------------------
-function renderSync(w: any) {
+const renderSync: SystemFn = (w: WorldApi) => {
   const alive = new Set<string>();
 
   // Create/update objects for all renderables
@@ -223,7 +223,7 @@ function frame(now: number) {
   last = now;
 
   // Run ECS phases (flush after each phase)
-  sched.run(world as any, dt, phases);
+  sched.run(world, dt, phases);
 
   // Render Three.js
   renderer.render(scene, camera);

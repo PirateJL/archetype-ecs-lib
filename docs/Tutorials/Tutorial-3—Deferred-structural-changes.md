@@ -7,7 +7,7 @@ Outcome: you’ll learn the one rule that prevents most ECS bugs: **don’t chan
 ## 1) Create `tutorial4.ts`
 
 ```ts
-import { World, Schedule } from "archetype-ecs-lib";
+import { World, WorldApi, Schedule } from "archetype-ecs-lib";
 ```
 
 ---
@@ -47,7 +47,7 @@ This is standard structural usage: `spawn()` + `add()`.
 Add this function:
 
 ```ts
-function unsafeDespawnInsideQuery(w: any) {
+const unsafeDespawnInsideQuery: SystemFn = (w: WorldApi) => {
   for (const { e, c1: pos } of w.query(Position)) {
     if (pos.x > 8) {
       // ❌ Structural change during iteration (may throw)
@@ -61,7 +61,7 @@ Now call it once (inside a try/catch so the tutorial keeps going):
 
 ```ts
 try {
-  unsafeDespawnInsideQuery(world as any);
+  unsafeDespawnInsideQuery(world);
   console.log("unsafe: no error (but still not safe)");
 } catch (err: any) {
   console.log("unsafe: error as expected ->", String(err.message ?? err));
@@ -77,8 +77,8 @@ The lib will warn that structural changes during query iteration can throw and i
 Replace the unsafe function with a safe one:
 
 ```ts
-function safeDespawnInsideQuery(w: any) {
-  for (const { e, c1: pos } of w.query(Position)) {
+const safeDespawnInsideQuery: SystemFn = (w: WorldApi) => {
+  for (const { e, c1: pos } of w.query(RenderContextComponent)) {
     if (pos.x > 8) {
       // ✅ Defer structural change
       w.cmd().despawn(e);
@@ -98,7 +98,7 @@ Commands let you queue:
 ### Option A — Manual flush
 
 ```ts
-safeDespawnInsideQuery(world as any);
+safeDespawnInsideQuery(world);
 world.flush(); // apply queued despawns
 ```
 
@@ -111,14 +111,14 @@ Use `Schedule`, which flushes after each phase:
 ```ts
 const sched = new Schedule();
 
-sched.add("sim", (w: any) => {
+sched.add("sim", (w: WorldApi) => {
   // move
   for (const { c1: pos, c2: vel } of w.query(Position, Velocity)) {
     pos.x += vel.x;
   }
 });
 
-sched.add("cleanup", (w: any) => {
+sched.add("cleanup", (w: WorldApi) => {
   // safely despawn based on updated positions
   safeDespawnInsideQuery(w);
 });
@@ -136,7 +136,7 @@ const phases = ["sim", "cleanup"];
 Add a small logger:
 
 ```ts
-function logPositions(w: any, label: string) {
+function logPositions(w: WorldApi, label: string) {
   const items: string[] = [];
   for (const { e, c1: pos } of w.query(Position)) {
     items.push(`e${e.id}:${pos.x.toFixed(1)}`);
@@ -148,11 +148,11 @@ function logPositions(w: any, label: string) {
 Now run:
 
 ```ts
-logPositions(world as any, "before");
+logPositions(world, "before");
 
 for (let i = 0; i < 5; i++) {
-  sched.run(world as any, 0, phases);
-  logPositions(world as any, `after tick ${i + 1}`);
+  sched.run(world, 0, phases);
+  logPositions(world, `after tick ${i + 1}`);
 }
 ```
 
@@ -179,7 +179,7 @@ spawnMover(0,  2);
 spawnMover(5, -3);
 spawnMover(9,  1);
 
-function unsafeDespawnInsideQuery(w: any) {
+const unsafeDespawnInsideQuery: SystemFn = (w) => {
   for (const { e, c1: pos } of w.query(Position)) {
     if (pos.x > 8) {
       w.despawn(e); // ❌ may throw
@@ -194,13 +194,13 @@ try {
   console.log("unsafe: error as expected ->", String(err.message ?? err));
 }
 
-function safeDespawnInsideQuery(w: any) {
+const safeDespawnInsideQuery: SystemFn = (w) => {
   for (const { e, c1: pos } of w.query(Position)) {
     if (pos.x > 8) w.cmd().despawn(e); // ✅ deferred
   }
 }
 
-function logPositions(w: any, label: string) {
+function logPositions(w: WorldApi, label: string) {
   const items: string[] = [];
   for (const { e, c1: pos } of w.query(Position)) {
     items.push(`e${e.id}:${pos.x.toFixed(1)}`);
@@ -210,22 +210,22 @@ function logPositions(w: any, label: string) {
 
 const sched = new Schedule();
 
-sched.add("sim", (w: any) => {
+sched.add("sim", (w: WorldApi) => {
   for (const { c1: pos, c2: vel } of w.query(Position, Velocity)) {
     pos.x += vel.x;
   }
 });
 
-sched.add("cleanup", (w: any) => {
+sched.add("cleanup", (w: WorldApi) => {
   safeDespawnInsideQuery(w);
 });
 
 const phases = ["sim", "cleanup"];
 
-logPositions(world as any, "before");
+logPositions(world, "before");
 for (let i = 0; i < 5; i++) {
-  sched.run(world as any, 0, phases); // flush after each phase
-  logPositions(world as any, `after tick ${i + 1}`);
+  sched.run(world, 0, phases); // flush after each phase
+  logPositions(world, `after tick ${i + 1}`);
 }
 ```
 

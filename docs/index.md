@@ -44,7 +44,7 @@ world.add(e, Position, new Position(0, 0));
 world.add(e, Velocity, new Velocity(1, 0));
 
 // A simple system
-world.addSystem((w: any, dt: number) => {
+world.addSystem((w) => {
   for (const { e, c1: pos, c2: vel } of w.query(Position, Velocity)) {
     pos.x += vel.x * dt;
     pos.y += vel.y * dt;
@@ -57,8 +57,7 @@ world.addSystem((w: any, dt: number) => {
 world.update(1 / 60);
 ```
 
-> Note: `SystemFn` is typed as `(world: WorldI, dt) => void` where `WorldI` only requires `flush()`.  
-> In practice, you’ll typically use the concrete `World` API in systems (cast `world` or type your function accordingly).  
+> Note: `SystemFn` is typed as `(world: WorldApi, dt) => void`.  
 > Checkout the [tutorials](./Tutorials/Tutorial-1—Your-first-ECS-World.md) for more!  
 
 ---

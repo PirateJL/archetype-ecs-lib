@@ -29,7 +29,7 @@ Install is `npm i archetype-ecs-lib`.
 Create a file named `tutorial1.ts` with this code:
 
 ```ts
-import { World } from "archetype-ecs-lib";
+import { World, WorldApi } from "archetype-ecs-lib";
 
 // 1) Components = data (any class can be a component type)
 class Position { constructor(public x = 0, public y = 0) {} }
@@ -44,7 +44,7 @@ world.add(e, Position, new Position(0, 0));
 world.add(e, Velocity, new Velocity(2, 0)); // 2 units/sec along x
 
 // 4) Add a system (runs each update)
-world.addSystem((w: any, dt: number) => {
+world.addSystem((w, dt) => {
   for (const { e, c1: pos, c2: vel } of w.query(Position, Velocity)) {
     pos.x += vel.x * dt;
     pos.y += vel.y * dt;
