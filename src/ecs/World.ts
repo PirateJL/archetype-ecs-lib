@@ -96,7 +96,7 @@ export class World implements WorldApi
         return entity;
     }
 
-    public spawnBundle(...items: ComponentCtorBundleItem[]): Entity
+    public spawnMany(...items: ComponentCtorBundleItem[]): Entity
     {
         const e = this.spawn();
         for (const [ctor, value] of items) this.add(e, ctor as any, value as any);

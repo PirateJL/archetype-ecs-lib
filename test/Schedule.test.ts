@@ -12,20 +12,28 @@ describe("Schedule", () => {
             // --- systems won't use these in this test, but WorldApi requires them ---
             cmd: () => ({
                 spawn: jest.fn(),
+                spawnBundle: jest.fn(),
                 despawn: jest.fn(),
+                despawnBundle: jest.fn(),
                 add: jest.fn(),
+                addBundle: jest.fn(),
                 remove: jest.fn(),
+                removeBundle: jest.fn(),
             }),
 
             spawn: () => ({ id: 0, gen: 0 }),
+            spawnMany: jest.fn(),
             despawn: jest.fn(),
+            despawnMany: jest.fn(),
             isAlive: jest.fn(() => true),
 
             has: jest.fn(() => false),
             get: jest.fn(() => undefined),
             set: jest.fn(),
             add: jest.fn(),
+            addMany: jest.fn(),
             remove: jest.fn(),
+            removeMany: jest.fn(),
 
             query: jest.fn(function* () {
                 // empty iterable

@@ -37,11 +37,11 @@ export interface CommandsApi
     spawn(init?: (e: Entity) => void): void;
     spawnBundle(...items: ComponentCtorBundleItem[]): void;
     despawn(e: Entity): void;
-    despawnMany(entities: Entity[]): void;
+    despawnBundle(entities: Entity[]): void;
     add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void;
-    addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void;
+    addBundle(e: Entity, ...items: ComponentCtorBundleItem[]): void;
     remove<T>(e: Entity, ctor: ComponentCtor<T>): void;
-    removeMany(e: Entity, ...ctors: ComponentCtor<any>[]): void;
+    removeBundle(e: Entity, ...ctors: ComponentCtor<any>[]): void;
 }
 
 // ---- Typed query rows (c1/c2/... follow ctor argument order) ----
@@ -65,7 +65,7 @@ export interface WorldApi
 
     // entity lifecycle
     spawn(): Entity;
-    spawnBundle(...items: ComponentCtorBundleItem[]): void;
+    spawnMany(...items: ComponentCtorBundleItem[]): void;
     despawn(e: Entity): void;
     despawnMany(entities: Entity[]): void;
     isAlive(e: Entity): boolean;
