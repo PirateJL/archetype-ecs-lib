@@ -18,9 +18,10 @@ class Renderable { constructor(public kind: "cube" | "ship" = "cube") {} }
 3. Spawn entities in ECS:
 
 ```ts
-const e = world.spawn();
-world.add(e, Position, new Position(0, 0, 0));
-world.add(e, Renderable, new Renderable("cube"));
+const e = world.spawnMany(
+  new Position(0, 0, 0),
+  new Renderable("cube")
+)
 ```
 
 4. Create a **render-sync** system in a `render` phase:

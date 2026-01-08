@@ -18,6 +18,8 @@ export type Signature = ReadonlyArray<TypeId>;
 
 export type ComponentCtor<T> = new (...args: any[]) => T;
 
+export type ComponentCtorBundleItem<T = any> = readonly [ComponentCtor<T>, T];
+
 /**
  * Internal numeric id for a component "type".
  * (We keep it numeric so signatures can be sorted quickly.)
@@ -33,9 +35,13 @@ export type SystemFn = (world: WorldApi, dt: number) => void;
 export interface CommandsApi
 {
     spawn(init?: (e: Entity) => void): void;
+    spawnBundle(...items: ComponentCtorBundleItem[]): void;
     despawn(e: Entity): void;
+    despawnBundle(entities: Entity[]): void;
     add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void;
+    addBundle(e: Entity, ...items: ComponentCtorBundleItem[]): void;
     remove<T>(e: Entity, ctor: ComponentCtor<T>): void;
+    removeBundle(e: Entity, ...ctors: ComponentCtor<any>[]): void;
 }
 
 // ---- Typed query rows (c1/c2/... follow ctor argument order) ----
@@ -59,12 +65,16 @@ export interface WorldApi
 
     // entity lifecycle
     spawn(): Entity;
+    spawnMany(...items: ComponentCtorBundleItem[]): void;
     despawn(e: Entity): void;
+    despawnMany(entities: Entity[]): void;
     isAlive(e: Entity): boolean;
 
     // component ops
     add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void;
+    addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void;
     remove<T>(e: Entity, ctor: ComponentCtor<T>): void;
+    removeMany(e: Entity, ...ctors: ComponentCtor<any>[]): void;
     has<T>(e: Entity, ctor: ComponentCtor<T>): boolean;
     get<T>(e: Entity, ctor: ComponentCtor<T>): T | undefined;
     set<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void;

@@ -46,6 +46,15 @@ const e = world.spawn();
 
 ---
 
+### `spawnMany(...items: ComponentCtorBundleItem[]): Entity`
+
+Creates a new entity along with its initial components immediately.
+
+* `...items: ComponentCtorBundleItem[]` is the list of components to add to the newly created entity.
+* Internally, it iterates over the items and calls `add` for each component.
+
+---
+
 ### `despawn(e: Entity): void`
 
 Immediately removes an entity.
@@ -57,6 +66,15 @@ Immediately removes an entity.
 Throws if:
 
 * entity is stale or not alive
+
+---
+
+### `despawnMany(entities: Entity[]): void`
+
+Immediately removes multiple entities.
+
+* `entities: Entity[]` is the list of entities to despawn.
+* Internally, it iterates over the array and calls `despawn(e)` for each entity.
 
 ---
 
@@ -104,6 +122,16 @@ Throws if:
 
 ---
 
+### `addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void`
+
+Adding multiple components to an existing entity.
+
+* `e: Entity` is the target entity.
+* `...items: ComponentCtorBundleItem[]` is the list of components to add.
+* Internally, it loops through the items and calls `add` for each component.
+
+---
+
 ### `remove<T>(e: Entity, ctor: ComponentCtor<T>): void`
 
 Removes a component.
@@ -116,6 +144,16 @@ Throws if:
 * entity is stale
 * component does not exist
 * structural changes are forbidden
+
+---
+
+### `removeMany(e: Entity, ...ctors: ComponentCtor<any>[]): void`
+
+Removes multiple component types from an entity.
+
+* `e: Entity` is the target entity.
+* `...ctors: ComponentCtor<any>[]` is the list of component constructors (types) to remove.
+* Internally, it loops through the ctors and calls `remove` for each one.
 
 ---
 

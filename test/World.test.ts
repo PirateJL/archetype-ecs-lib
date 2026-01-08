@@ -1,7 +1,9 @@
+import { WorldApi } from "../src/ecs/Types";
 import { World } from "../src/ecs/World";
 
 class Position { constructor(public x = 0, public y = 0) {} }
 class Velocity { constructor(public dx = 0, public dy = 0) {} }
+class Health { constructor(public hp = 0) {} }
 
 describe("World", () => {
     let logSpy: jest.SpyInstance;
@@ -23,7 +25,21 @@ describe("World", () => {
         expect(w.get(e, Position)).toBeUndefined();
     });
 
-    it("add/get/set/remove components", () => {
+    it("spawn an entity alive with many components", () => {
+        const w = new World();
+        const e = w.spawnMany(
+            [Position, new Position()],
+            [Velocity, new Velocity()]
+        );
+
+        expect(w.isAlive(e)).toBe(true);
+        expect(w.has(e, Position)).toBe(true);
+        expect(w.has(e, Velocity)).toBe(true);
+        expect(w.get(e, Velocity)).toBeDefined();
+        expect(w.get(e, Velocity)).toBeDefined();
+    });
+
+    it("add/addMany/get/set/remove/removeMany components", () => {
         const w = new World();
         const e = w.spawn();
 
@@ -31,12 +47,24 @@ describe("World", () => {
         expect(w.has(e, Position)).toBe(true);
         expect(w.get(e, Position)).toEqual({ x: 1, y: 2 });
 
+        w.addMany(e, [Velocity, new Velocity()], [Health, new Health(100)]);
+        expect(w.has(e, Velocity)).toBe(true);
+        expect(w.has(e, Health)).toBe(true);
+        expect(w.get(e, Velocity)).toEqual({ dx: 0, dy: 0 });
+        expect(w.get(e, Health)).toEqual({ hp: 100 });
+
         w.set(e, Position, new Position(9, 8));
         expect(w.get(e, Position)).toEqual({ x: 9, y: 8 });
 
         w.remove(e, Position);
         expect(w.has(e, Position)).toBe(false);
         expect(w.get(e, Position)).toBeUndefined();
+
+        w.removeMany(e, Velocity, Health);
+        expect(w.has(e, Velocity)).toBe(false);
+        expect(w.has(e, Health)).toBe(false);
+        expect(w.get(e, Velocity)).toBeUndefined();
+        expect(w.get(e, Health)).toBeUndefined();
     });
 
     it("add overwrites in-place if component already exists", () => {
@@ -81,6 +109,19 @@ describe("World", () => {
         expect(e2.id).toBe(e1.id);
         expect(e2.gen).toBe(e1.gen + 1);
         expect(w.isAlive(e2)).toBe(true);
+    });
+
+    it("despawn many entities, expect them to be dead", () => {
+        const w = new World();
+        const e1 = w.spawn();
+        const e2 = w.spawn();
+        const e3 = w.spawn();
+
+        w.despawnMany([e1, e2, e3]);
+
+        expect(w.isAlive(e1)).toBe(false);
+        expect(w.isAlive(e2)).toBe(false);
+        expect(w.isAlive(e3)).toBe(false);
     });
 
     it("query returns entities that have required components", () => {
@@ -194,7 +235,7 @@ describe("World", () => {
         const w = new World();
         const e = w.spawn();
 
-        w.addSystem((world: any) => {
+        w.addSystem((world: WorldApi) => {
             expect(() => world.add(e, Position, new Position(1, 2))).toThrow(/Use world\.cmd\(\)/i);
             expect(() => world.remove(e, Position)).toThrow(/Use world\.cmd\(\)/i);
             expect(() => world.despawn(e)).toThrow(/Use world\.cmd\(\)/i);
@@ -212,7 +253,7 @@ describe("World", () => {
         const w = new World();
         const e = w.spawn();
 
-        w.addSystem((world: any) => {
+        w.addSystem((world: WorldApi) => {
             world.cmd().add(e, Position, new Position(1, 1));
             throw new Error("boom");
         });
@@ -222,5 +263,21 @@ describe("World", () => {
         // command should still have been applied in finally { flush() }
         expect(w.has(e, Position)).toBe(true);
         expect(w.get(e, Position)).toMatchObject({ x: 1, y: 1 });
+    });
+
+    test("update() flushes queued commands successfully", () => {
+        const w = new World();
+        const e = w.spawnMany([Position, new Position(1, 1)], [Velocity, new Velocity(1, 1)])
+
+        w.addSystem((world: WorldApi) => {
+            world.cmd().remove(e, Velocity);
+            world.cmd().despawn(e);
+        });
+
+        w.update(0);
+
+        // commands have been applied
+        expect(w.has(e, Position)).toBe(false);
+        expect(w.isAlive(e)).toBe(false);
     });
 });

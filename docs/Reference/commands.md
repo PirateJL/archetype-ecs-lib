@@ -42,9 +42,27 @@ Enqueues creation of a new entity.
 
 ---
 
+### `spawnBundle(...items: ComponentCtorBundleItem[])`
+
+Queues the creation of a new entity, along with its initial components, and applies everything on the next flush (within the same flush cycle).
+
+* `...items: ComponentCtorBundleItem[]` is the list of components to add to the newly created entity.
+* Internally, it iterates over the items and calls `add(e, ctor, value)` for each component.
+
+---
+
 ### `despawn(e: Entity)`
 
 Enqueues removal of an entity. 
+
+---
+
+### `despawnBundle(entities: Entity[])`
+
+Enqueues the destruction of multiple entities. The actual removals are applied when commands are flushed.
+
+* `entities: Entity[]` is the list of entities to despawn.
+* Internally, it iterates over the array and calls `despawn(e)` for each entity.
 
 ---
 
@@ -54,9 +72,29 @@ Enqueues adding a component to an entity. This is a **structural** change (it ma
 
 ---
 
+### `addBundle(e: Entity, ...items: ComponentCtorBundleItem[])`
+
+Enqueues adding multiple components to an existing entity. All component adds are applied on flush.
+
+* `e: Entity` is the target entity.
+* `...items: ComponentCtorBundleItem[]` is the list of components to add.
+* Internally, it loops through the items and calls `add(e, ctor, value)` for each component.
+
+---
+
 ### `remove(e, ctor)`
 
 Enqueues removing a component from an entity. This is also a **structural** change. 
+
+---
+
+### `removeBundle(e: Entity, ...ctors: ComponentCtor<any>[])`
+
+Enqueues removal of multiple component types from an entity. The removals are applied on flush.
+
+* `e: Entity` is the target entity.
+* `...ctors: ComponentCtor<any>[]` is the list of component constructors (types) to remove.
+* Internally, it loops through the ctors and calls `remove(e, ctor)` for each one.
 
 ---
 
