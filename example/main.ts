@@ -55,8 +55,9 @@ const world = new World();
 const schedule = new Schedule();
 
 /** Create "resources entity" */
-const res = world.spawn();
-world.add(res, RenderContextComponent, new RenderContextComponent(scene, camera, renderer, controls));
+world.spawnMany(
+    [RenderContextComponent, new RenderContextComponent(scene, camera, renderer, controls)]
+)
 
 /** Create cube entity */
 const cubeMesh = new THREE.Mesh(
@@ -68,9 +69,12 @@ scene.add(cubeMesh);
 const cube = world.spawn();
 const t = new TransformComponent();
 t.position.set(0, 0, 0);
-world.add(cube, TransformComponent, t);
-world.add(cube, SpinComponent, new SpinComponent(1.8));
-world.add(cube, ThreeObjectComponent, new ThreeObjectComponent(cubeMesh));
+world.addMany(
+    cube,
+    [TransformComponent, t],
+    [SpinComponent, new SpinComponent(1.8)],
+    [ThreeObjectComponent, new ThreeObjectComponent(cubeMesh)]
+);
 
 /** ----- Systems ----- */
 const spinSystem: SystemFn = (w, dt) => {
