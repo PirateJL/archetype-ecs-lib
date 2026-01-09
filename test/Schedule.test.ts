@@ -1,4 +1,4 @@
-import { Schedule, WorldApi } from '../src/index';
+import { ComponentCtor, Schedule, WorldApi } from '../src/index';
 
 describe("Schedule", () => {
     test("runs systems by phase order and flushes between phases that exist", () => {
@@ -8,6 +8,17 @@ describe("Schedule", () => {
         // Minimal WorldApi stub for Schedule + SystemFn typing
         const world: WorldApi = {
             flush: jest.fn(() => calls.push("flush")),
+
+            // ---- Resources (minimal stubs, no real storage) ----
+            setResource: jest.fn(<T>(_key: ComponentCtor<T>, _value: T) => {}),
+            getResource: jest.fn(<T>(_key: ComponentCtor<T>) => undefined as T | undefined),
+            requireResource: jest.fn(<T>(key: ComponentCtor<T>) => {
+                // minimal: either throw (closer to real behavior) or return a dummy
+                throw new Error(`Missing resource ${String((key as any)?.name ?? "resource")}`);
+            }),
+            hasResource: jest.fn(<T>(_key: ComponentCtor<T>) => false),
+            removeResource: jest.fn(<T>(_key: ComponentCtor<T>) => false),
+            initResource: jest.fn(<T>(_key: ComponentCtor<T>, factory: () => T) => factory()),
 
             // --- systems won't use these in this test, but WorldApi requires them ---
             cmd: () => ({
