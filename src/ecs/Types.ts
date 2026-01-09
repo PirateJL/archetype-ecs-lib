@@ -63,6 +63,38 @@ export interface WorldApi
 
     flush(): void;
 
+    // resources (singletons / world globals)
+    /**
+     * Insert or replace a resource (singleton) stored on the World, keyed by ctor.
+     * This is NOT a structural change (safe during iteration).
+     */
+    setResource<T>(key: ComponentCtor<T>, value: T): void;
+
+    /**
+     * Returns the resource value if present, otherwise `undefined`.
+     * Use this for optional resources (debug tools, plugins, editor-only state, etc.).
+     *
+     * Note: if you explicitly stored `undefined` as a resource value, this also returns `undefined`.
+     * Use `hasResource()` to distinguish "missing" vs "present but undefined".
+     */
+    getResource<T>(key: ComponentCtor<T>): T | undefined;
+
+    /**
+     * Returns the resource value if present, otherwise throws.
+     * Use this for required resources (Time, Input, AssetCache, Config...) to keep systems clean.
+     *
+     * The check is based on `hasResource(key)` so "missing" is unambiguous even if the stored value is `undefined`.
+     */
+    requireResource<T>(key: ComponentCtor<T>): T;
+    hasResource<T>(key: ComponentCtor<T>): boolean;
+    removeResource<T>(key: ComponentCtor<T>): boolean;
+
+    /**
+     * Insert once, returning the existing value if already present.
+     * Great for bootstrapping defaults without double-initializing.
+     */
+    initResource<T>(key: ComponentCtor<T>, factory: () => T): T;
+
     // entity lifecycle
     spawn(): Entity;
     spawnMany(...items: ComponentCtorBundleItem[]): void;

@@ -32,6 +32,8 @@ export class World implements WorldApi
     private readonly commands = new Commands();
     private _iterateDepth: number = 0;
 
+    private readonly resources = new Map<ComponentCtor<any>, any>();
+
     constructor()
     {
         // Archetype 0: empty signature
@@ -71,9 +73,6 @@ export class World implements WorldApi
     public flush(): void
     {
         this._ensureNotIterating("flush");
-        // const ops = this.commands.drain();
-        // for (const op of ops) this._apply(op);
-
         // Apply commands until queue is empty. This allows spawn(init) to enqueue add/remove
         // operations that will be applied during the same flush.
         while (true) {
@@ -82,6 +81,50 @@ export class World implements WorldApi
             for (const op of ops) this._apply(op);
         }
     }
+
+    //#region ---------- Resources (singletons) ----------
+    public setResource<T>(key: ComponentCtor<T>, value: T): void
+    {
+        this.resources.set(key, value);
+    }
+
+    public getResource<T>(key: ComponentCtor<T>): T | undefined
+    {
+        if (!this.resources.has(key)) return undefined;
+        return this.resources.get(key) as T;
+    }
+
+    public requireResource<T>(key: ComponentCtor<T>): T
+    {
+        if (!this.resources.has(key)) {
+            const name = this._formatCtor(key);
+            throw new Error(
+                `Missing resource ${name}. ` +
+                `Insert it via world.setResource(${name}, value) or world.initResource(${name}, () => value).`
+            );
+        }
+        return this.resources.get(key) as T;
+    }
+
+    public hasResource<T>(key: ComponentCtor<T>): boolean
+    {
+        return this.resources.has(key);
+    }
+
+    public removeResource<T>(key: ComponentCtor<T>): boolean
+    {
+        return this.resources.delete(key);
+    }
+
+    public initResource<T>(key: ComponentCtor<T>, factory: () => T): T
+    {
+        if (this.resources.has(key)) return this.resources.get(key) as T;
+        const value = factory();
+        this.resources.set(key, value);
+        return value;
+    }
+    //#endregion
+
 
     //#region ---------- Entity lifecycle ----------
     public spawn(): Entity
