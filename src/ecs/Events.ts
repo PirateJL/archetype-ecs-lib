@@ -37,14 +37,14 @@ export class EventChannel<T>
 
     public clear(): void
     {
-        this._read.length = 0;
+        this._read = [];
     }
 
     /** Clears both buffers (rarely needed, but useful for resets). */
     public clearAll(): void 
     {
-        this._read.length = 0;
-        this._write.length = 0;
+        this._read = [];
+        this._write = [];
     }
 
     /** @internal Called by World at phase boundaries. */
@@ -53,6 +53,6 @@ export class EventChannel<T>
         const tmp = this._read;
         this._read = this._write;
         this._write = tmp;
-        this._write.length = 0; // drop any unconsumed read events that were in tmp
+        this._write = []; // drop any unconsumed read events that were in tmp
     }
 }
