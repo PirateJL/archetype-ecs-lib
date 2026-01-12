@@ -1,3 +1,5 @@
+import { EventChannel } from "./Events";
+
 export type EntityId = number;
 
 export type Entity = Readonly<{
@@ -63,7 +65,8 @@ export interface WorldApi
 
     flush(): void;
 
-    // resources (singletons / world globals)
+    //#region ----- Resources lifecycle -----
+    // (singletons / world globals)
     /**
      * Insert or replace a resource (singleton) stored on the World, keyed by ctor.
      * This is NOT a structural change (safe during iteration).
@@ -88,6 +91,7 @@ export interface WorldApi
     requireResource<T>(key: ComponentCtor<T>): T;
     hasResource<T>(key: ComponentCtor<T>): boolean;
     removeResource<T>(key: ComponentCtor<T>): boolean;
+    //#endregion
 
     /**
      * Insert once, returning the existing value if already present.
@@ -95,14 +99,46 @@ export interface WorldApi
      */
     initResource<T>(key: ComponentCtor<T>, factory: () => T): T;
 
-    // entity lifecycle
+    //#region ----- Events lifecycle -----
+    // (phase-scoped, double-buffered)
+
+    /** Emit an event into the current phase (write buffer). */
+    emit<T>(key: ComponentCtor<T>, ev: T): void;
+
+    /**
+     * Get the channel for an event type (created on first use).
+     * - readable events are from the previous phase
+     * - emitted events go to the current phase
+     */
+    events<T>(key: ComponentCtor<T>): EventChannel<T>;
+
+    /**
+     * Drain readable events for this type (previous phase), calling fn for each.
+     * If the channel doesn't exist yet, this is a no-op.
+     */
+    drainEvents<T>(key: ComponentCtor<T>, fn: (ev: T) => void): void;
+
+    /**
+     * Clears readable events for a type (or all types if omitted).
+     * Does not affect entity structure.
+     */
+    clearEvents<T>(key?: ComponentCtor<T>): void;
+
+    /**
+     * @internal Called by Schedule at phase boundaries to deliver events to the next phase.
+     */
+    swapEvents(): void;
+    //#endregion
+
+    //#region ----- entity lifecycle -----
     spawn(): Entity;
     spawnMany(...items: ComponentCtorBundleItem[]): void;
     despawn(e: Entity): void;
     despawnMany(entities: Entity[]): void;
     isAlive(e: Entity): boolean;
+    //#endregion
 
-    // component ops
+    //#region ----- component ops -----
     add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void;
     addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void;
     remove<T>(e: Entity, ctor: ComponentCtor<T>): void;
@@ -110,8 +146,9 @@ export interface WorldApi
     has<T>(e: Entity, ctor: ComponentCtor<T>): boolean;
     get<T>(e: Entity, ctor: ComponentCtor<T>): T | undefined;
     set<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void;
+    //#endregion
 
-    // query ops
+    //#region ----- query ops -----
     // ---- Typed query rows (c1/c2/... follow ctor argument order) ----
     query<A>(c1: ComponentCtor<A>): Iterable<QueryRow1<A>>;
     query<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryRow2<A, B>>;
@@ -120,4 +157,5 @@ export interface WorldApi
     query<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryRow5<A, B, C, D, E>>;
     query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryRow6<A, B, C, D, E, F>>;
     query(...ctors: ComponentCtor<any>[]): Iterable<any>;
+    //#endregion
 }

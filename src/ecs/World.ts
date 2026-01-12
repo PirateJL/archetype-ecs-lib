@@ -1,6 +1,7 @@
 import { Archetype } from "./Archetype";
 import { Command, Commands } from "./Commands";
 import { EntityManager } from "./EntityManager";
+import { EventChannel } from "./Events";
 import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from "./Signature";
 import { typeId } from "./TypeRegistry";
 import {
@@ -33,6 +34,8 @@ export class World implements WorldApi
     private _iterateDepth: number = 0;
 
     private readonly resources = new Map<ComponentCtor<any>, any>();
+    private readonly eventChannels = new Map<ComponentCtor<any>, EventChannel<any>>();
+
 
     constructor()
     {
@@ -122,6 +125,44 @@ export class World implements WorldApi
         const value = factory();
         this.resources.set(key, value);
         return value;
+    }
+    //#endregion
+
+    //#region ---------- Events (phase-scoped) ----------
+    public emit<T>(key: ComponentCtor<T>, ev: T): void
+    {
+        this._events(key).emit(ev);
+    }
+
+    public events<T>(key: ComponentCtor<T>): EventChannel<T>
+    {
+        return this._events(key);
+    }
+
+    public drainEvents<T>(key: ComponentCtor<T>, fn: (ev: T) => void): void
+    {
+        const ch = this.eventChannels.get(key) as EventChannel<T> | undefined;
+        if (!ch) return;
+        ch.drain(fn);
+    }
+
+    public clearEvents<T>(key?: ComponentCtor<T>): void
+    {
+        if (key) {
+            const ch = this.eventChannels.get(key);
+            if (!ch) return;
+            ch.clear();
+            return;
+        }
+
+        // clear all readable buffers
+        for (const ch of this.eventChannels.values()) ch.clear();
+    }
+
+    /** @internal Called by Schedule at phase boundaries */
+    public swapEvents(): void
+    {
+        for (const ch of this.eventChannels.values()) ch.swapBuffers();
     }
     //#endregion
 
@@ -398,6 +439,16 @@ export class World implements WorldApi
             throw new Error(`${op} on stale entity ${this._formatEntity(e)} (alive=${meta?.alive ?? false}, gen=${meta?.gen ?? "n/a"})`);
         }
         return meta;
+    }
+
+    private _events<T>(key: ComponentCtor<T>): EventChannel<T>
+    {
+        let ch = this.eventChannels.get(key);
+        if (!ch) {
+            ch = new EventChannel<T>();
+            this.eventChannels.set(key, ch);
+        }
+        return ch as EventChannel<T>;
     }
     //#endregion
 }

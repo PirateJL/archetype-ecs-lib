@@ -3,3 +3,4 @@ export * from "./ecs/TypeRegistry";
 export * from "./ecs/Commands";
 export * from "./ecs/World";
 export * from "./ecs/Schedule";
+export * from "./ecs/Events";
