@@ -34,7 +34,9 @@ export class Schedule {
             }
 
             // apply deferred commands between phases
-            world.flush();
+            if (world.cmd().hasPending()) {
+                world.flush();
+            }
 
             // deliver events emitted in this phase to the next phase
             world.swapEvents();

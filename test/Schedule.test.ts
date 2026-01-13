@@ -38,6 +38,7 @@ describe("Schedule", () => {
                 addBundle: jest.fn(),
                 remove: jest.fn(),
                 removeBundle: jest.fn(),
+                hasPending: jest.fn(() => {return true}) // Return true to sim the flush between phases
             }),
 
             spawn: () => ({ id: 0, gen: 0 }),

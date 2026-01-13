@@ -53,6 +53,11 @@ export class Commands implements CommandsApi
         for (const ctor of ctors) this.remove(e, ctor);
     }
 
+    public hasPending(): boolean
+    {
+        return this.q.length > 0;
+    }
+
     public drain(): Command[]
     {
         const out = this.q;

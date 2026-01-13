@@ -149,11 +149,10 @@ function rand(min: number, max: number) {
 }
 
 function createCubeMesh(colorHex: number, texture?: THREE.Texture): THREE.Mesh {
+    const materialParams = texture === undefined ? 
+        {color: colorHex} : {color: colorHex, map: texture};
     const geo = new THREE.BoxGeometry(1, 1, 1);
-    const mat = new THREE.MeshStandardMaterial({
-        color: colorHex,
-        map: texture,
-    });
+    const mat = new THREE.MeshStandardMaterial(materialParams);
     return new THREE.Mesh(geo, mat);
 }
 

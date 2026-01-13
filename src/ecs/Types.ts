@@ -44,6 +44,7 @@ export interface CommandsApi
     addBundle(e: Entity, ...items: ComponentCtorBundleItem[]): void;
     remove<T>(e: Entity, ctor: ComponentCtor<T>): void;
     removeBundle(e: Entity, ...ctors: ComponentCtor<any>[]): void;
+    hasPending(): boolean;
 }
 
 // ---- Typed query rows (c1/c2/... follow ctor argument order) ----
