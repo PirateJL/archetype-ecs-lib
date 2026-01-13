@@ -256,6 +256,53 @@ world.update(1 / 60);
 
 ---
 
+## Events API
+
+### `emit<T>(key: ComponentCtor<T>, ev: T): void`
+
+Emits an event of type `T` into the current phase write buffer.
+
+---
+
+### `events<T>(key: ComponentCtor<T>): EventChannel<T>`
+
+Returns the event channel for `key`, creating it if missing.
+
+---
+
+### `drainEvents<T>(key: ComponentCtor<T>, fn: (ev: T) => void): void`
+
+Drains readable events for the given type.
+
+**Behavior**
+
+* If the channel doesn’t exist yet, it’s a **no-op** (does not allocate/create)
+
+---
+
+### `clearEvents<T>(key?: ComponentCtor<T>): void`
+
+Clears readable events.
+
+* If `key` is provided: clears that event type’s **read buffer**
+* If omitted: clears the **read buffers of all** event types
+
+---
+
+### `swapEvents(): void` (internal / schedule boundary)
+
+Swaps all event channels’ buffers. Called by `Schedule` at phase boundaries.
+
+**Required schedule behavior**
+At each phase boundary:
+
+```ts
+world.flush();
+world.swapEvents();
+```
+
+---
+
 ## Internal Guarantees
 
 * Archetypes use **Structure of Arrays (SoA)**
