@@ -1,6 +1,7 @@
 import { Archetype } from "./Archetype";
 import { Command, Commands } from "./Commands";
 import { EntityManager } from "./EntityManager";
+import { EventChannel } from "./Events";
 import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from "./Signature";
 import { typeId } from "./TypeRegistry";
 import {
@@ -31,6 +32,10 @@ export class World implements WorldApi
 
     private readonly commands = new Commands();
     private _iterateDepth: number = 0;
+
+    private readonly resources = new Map<ComponentCtor<any>, any>();
+    private readonly eventChannels = new Map<ComponentCtor<any>, EventChannel<any>>();
+
 
     constructor()
     {
@@ -71,9 +76,6 @@ export class World implements WorldApi
     public flush(): void
     {
         this._ensureNotIterating("flush");
-        // const ops = this.commands.drain();
-        // for (const op of ops) this._apply(op);
-
         // Apply commands until queue is empty. This allows spawn(init) to enqueue add/remove
         // operations that will be applied during the same flush.
         while (true) {
@@ -82,6 +84,88 @@ export class World implements WorldApi
             for (const op of ops) this._apply(op);
         }
     }
+
+    //#region ---------- Resources (singletons) ----------
+    public setResource<T>(key: ComponentCtor<T>, value: T): void
+    {
+        this.resources.set(key, value);
+    }
+
+    public getResource<T>(key: ComponentCtor<T>): T | undefined
+    {
+        if (!this.resources.has(key)) return undefined;
+        return this.resources.get(key) as T;
+    }
+
+    public requireResource<T>(key: ComponentCtor<T>): T
+    {
+        if (!this.resources.has(key)) {
+            const name = this._formatCtor(key);
+            throw new Error(
+                `Missing resource ${name}. ` +
+                `Insert it via world.setResource(${name}, value) or world.initResource(${name}, () => value).`
+            );
+        }
+        return this.resources.get(key) as T;
+    }
+
+    public hasResource<T>(key: ComponentCtor<T>): boolean
+    {
+        return this.resources.has(key);
+    }
+
+    public removeResource<T>(key: ComponentCtor<T>): boolean
+    {
+        return this.resources.delete(key);
+    }
+
+    public initResource<T>(key: ComponentCtor<T>, factory: () => T): T
+    {
+        if (this.resources.has(key)) return this.resources.get(key) as T;
+        const value = factory();
+        this.resources.set(key, value);
+        return value;
+    }
+    //#endregion
+
+    //#region ---------- Events (phase-scoped) ----------
+    public emit<T>(key: ComponentCtor<T>, ev: T): void
+    {
+        this._events(key).emit(ev);
+    }
+
+    public events<T>(key: ComponentCtor<T>): EventChannel<T>
+    {
+        return this._events(key);
+    }
+
+    public drainEvents<T>(key: ComponentCtor<T>, fn: (ev: T) => void): void
+    {
+        const ch = this.eventChannels.get(key) as EventChannel<T> | undefined;
+        if (!ch) return;
+        ch.drain(fn);
+    }
+
+    public clearEvents<T>(key?: ComponentCtor<T>): void
+    {
+        if (key) {
+            const ch = this.eventChannels.get(key);
+            if (!ch) return;
+            ch.clear();
+            return;
+        }
+
+        // clear all readable buffers
+        for (const ch of this.eventChannels.values()) ch.clear();
+    }
+
+    /** @internal Called by Schedule at phase boundaries */
+    public swapEvents(): void
+    {
+        for (const ch of this.eventChannels.values()) ch.swapBuffers();
+    }
+    //#endregion
+
 
     //#region ---------- Entity lifecycle ----------
     public spawn(): Entity
@@ -355,6 +439,16 @@ export class World implements WorldApi
             throw new Error(`${op} on stale entity ${this._formatEntity(e)} (alive=${meta?.alive ?? false}, gen=${meta?.gen ?? "n/a"})`);
         }
         return meta;
+    }
+
+    private _events<T>(key: ComponentCtor<T>): EventChannel<T>
+    {
+        let ch = this.eventChannels.get(key);
+        if (!ch) {
+            ch = new EventChannel<T>();
+            this.eventChannels.set(key, ch);
+        }
+        return ch as EventChannel<T>;
     }
     //#endregion
 }

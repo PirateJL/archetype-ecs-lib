@@ -7,6 +7,7 @@ A tiny **archetype-based ECS** (Entity Component System) for TypeScript.
 - **Archetypes (tables)** store entities in a **SoA** layout (one column per component type).
 - **Queries** iterate matching archetypes efficiently.
 - **Commands** let you **defer structural changes** (spawn/despawn/add/remove) safely.
+* **Resources (singletons)** store **global world state** (Input, Time, Config, Asset caches…) keyed by type, without using entities.
 - A minimal **Schedule** runs systems by phases and flushes commands between phases.
 
 Exports are defined in `index.ts`:
