@@ -15,8 +15,8 @@ export class EventChannel<T>
      */
     public drain(fn: (ev: T) => void): void
     {
-        const r = this._read;
-        for (let i = 0; i < r.length; i++) fn(r[i]!);
+        const read = this._read;
+        for (const r of read) fn(r!);
         this.clear();
     }
 
@@ -41,7 +41,7 @@ export class EventChannel<T>
     }
 
     /** Clears both buffers (rarely needed, but useful for resets). */
-    public clearAll(): void 
+    public clearAll(): void
     {
         this._read = [];
         this._write = [];

@@ -10,7 +10,7 @@ describe("Schedule", () => {
             flush: jest.fn(() => calls.push("flush")),
 
             // ---- Resources (minimal stubs, no real storage) ----
-            setResource: jest.fn(<T>(_key: ComponentCtor<T>, _value: T) => {}),
+            setResource: jest.fn(<T>(_key: ComponentCtor<T>, _value: T) => { }),
             getResource: jest.fn(<T>(_key: ComponentCtor<T>) => undefined as T | undefined),
             requireResource: jest.fn(<T>(key: ComponentCtor<T>) => {
                 // minimal: either throw (closer to real behavior) or return a dummy
@@ -19,6 +19,14 @@ describe("Schedule", () => {
             hasResource: jest.fn(<T>(_key: ComponentCtor<T>) => false),
             removeResource: jest.fn(<T>(_key: ComponentCtor<T>) => false),
             initResource: jest.fn(<T>(_key: ComponentCtor<T>, factory: () => T) => factory()),
+
+            // ---- Events (minimal stubs, no real storage) ----
+
+            emit: jest.fn(),
+            events: jest.fn(),
+            drainEvents: jest.fn(),
+            clearEvents: jest.fn(),
+            swapEvents: jest.fn(),
 
             // --- systems won't use these in this test, but WorldApi requires them ---
             cmd: () => ({
@@ -59,6 +67,7 @@ describe("Schedule", () => {
 
         expect(calls).toEqual(["a1", "a2", "flush", "b1", "flush"]);
         expect(world.flush).toHaveBeenCalledTimes(2);
+        expect(world.swapEvents).toHaveBeenCalledTimes(2);
     });
 
     test("add is chainable", () => {
