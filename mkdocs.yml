@@ -87,6 +87,8 @@ plugins:
       output_path: assets/document.pdf
       cover_subtitle: "La gestion de contenu intégrée"
       cover_logo: assets/logo_couleur.png
+      exclude_pages:
+        - Demo/
   search:
     enabled: true
     lang: en
