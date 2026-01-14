@@ -96,3 +96,6 @@ plugins:
 
 extra_javascript:
   - javascript/extra.js
+
+extra_css:
+  - stylesheets/fullpage.css

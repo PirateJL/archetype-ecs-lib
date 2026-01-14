@@ -1,4 +1,4 @@
-import { Signature, TypeId } from "./Types";
+import type { Signature, TypeId } from "./Types";
 
 export function signatureKey(sig: Signature): string {
     // canonical: sorted ascending, joined

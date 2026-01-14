@@ -1,4 +1,4 @@
-import { Column, Entity, Signature, TypeId } from "./Types";
+import type { Column, Entity, Signature, TypeId } from "./Types";
 
 export class Archetype
 {

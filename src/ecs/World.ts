@@ -1,10 +1,10 @@
 import { Archetype } from "./Archetype";
-import { Command, Commands } from "./Commands";
+import { type Command, Commands } from "./Commands";
 import { EntityManager } from "./EntityManager";
 import { EventChannel } from "./Events";
 import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from "./Signature";
 import { typeId } from "./TypeRegistry";
-import {
+import type {
     ComponentCtor,
     ComponentCtorBundleItem,
     Entity,
