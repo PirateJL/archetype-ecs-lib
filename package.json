@@ -1,6 +1,6 @@
 {
   "name": "archetype-ecs-lib",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "An Archetype Entity Component System (AECS)",
   "main": "./lib/index.js",
   "scripts": {
@@ -13,6 +13,7 @@
     "type": "git",
     "url": "git+https://github.com/PirateJL/archetype-ecs-lib.git"
   },
+  "homepage": "https://piratejl.github.io/archetype-ecs-lib",
   "keywords": [
     "game",
     "gamedev",

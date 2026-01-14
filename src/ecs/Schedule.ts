@@ -1,4 +1,4 @@
-import type { SystemFn, WorldI } from "./Types";
+import type { SystemFn, WorldApi } from "./Types";
 
 /**
  * Minimal scheduler that supports phases, without borrow-checking.
@@ -15,7 +15,7 @@ export class Schedule {
         return this;
     }
 
-    run(world: WorldI, dt: number, phaseOrder: string[]): void
+    run(world: WorldApi, dt: number, phaseOrder: string[]): void
     {
         for (const phase of phaseOrder) {
             const list = this.phases.get(phase);
@@ -34,7 +34,12 @@ export class Schedule {
             }
 
             // apply deferred commands between phases
-            world.flush();
+            if (world.cmd().hasPending()) {
+                world.flush();
+            }
+
+            // deliver events emitted in this phase to the next phase
+            world.swapEvents();
         }
     }
 }

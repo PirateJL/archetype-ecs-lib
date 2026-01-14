@@ -1,11 +1,27 @@
 import { Archetype } from "./Archetype";
-import { Command, Commands } from "./Commands";
+import { type Command, Commands } from "./Commands";
 import { EntityManager } from "./EntityManager";
+import { EventChannel } from "./Events";
 import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from "./Signature";
 import { typeId } from "./TypeRegistry";
-import { ComponentCtor, Entity, EntityMeta, Signature, SystemFn, TypeId, WorldI } from "./Types";
+import type {
+    ComponentCtor,
+    ComponentCtorBundleItem,
+    Entity,
+    EntityMeta,
+    QueryRow1,
+    QueryRow2,
+    QueryRow3,
+    QueryRow4,
+    QueryRow5,
+    QueryRow6,
+    Signature,
+    SystemFn,
+    TypeId,
+    WorldApi
+} from "./Types";
 
-export class World implements WorldI
+export class World implements WorldApi
 {
     private readonly entities = new EntityManager();
 
@@ -16,6 +32,10 @@ export class World implements WorldI
 
     private readonly commands = new Commands();
     private _iterateDepth: number = 0;
+
+    private readonly resources = new Map<ComponentCtor<any>, any>();
+    private readonly eventChannels = new Map<ComponentCtor<any>, EventChannel<any>>();
+
 
     constructor()
     {
@@ -56,9 +76,96 @@ export class World implements WorldI
     public flush(): void
     {
         this._ensureNotIterating("flush");
-        const ops = this.commands.drain();
-        for (const op of ops) this._apply(op);
+        // Apply commands until queue is empty. This allows spawn(init) to enqueue add/remove
+        // operations that will be applied during the same flush.
+        while (true) {
+            const ops = this.commands.drain();
+            if (ops.length === 0) break;
+            for (const op of ops) this._apply(op);
+        }
     }
+
+    //#region ---------- Resources (singletons) ----------
+    public setResource<T>(key: ComponentCtor<T>, value: T): void
+    {
+        this.resources.set(key, value);
+    }
+
+    public getResource<T>(key: ComponentCtor<T>): T | undefined
+    {
+        if (!this.resources.has(key)) return undefined;
+        return this.resources.get(key) as T;
+    }
+
+    public requireResource<T>(key: ComponentCtor<T>): T
+    {
+        if (!this.resources.has(key)) {
+            const name = this._formatCtor(key);
+            throw new Error(
+                `Missing resource ${name}. ` +
+                `Insert it via world.setResource(${name}, value) or world.initResource(${name}, () => value).`
+            );
+        }
+        return this.resources.get(key) as T;
+    }
+
+    public hasResource<T>(key: ComponentCtor<T>): boolean
+    {
+        return this.resources.has(key);
+    }
+
+    public removeResource<T>(key: ComponentCtor<T>): boolean
+    {
+        return this.resources.delete(key);
+    }
+
+    public initResource<T>(key: ComponentCtor<T>, factory: () => T): T
+    {
+        if (this.resources.has(key)) return this.resources.get(key) as T;
+        const value = factory();
+        this.resources.set(key, value);
+        return value;
+    }
+    //#endregion
+
+    //#region ---------- Events (phase-scoped) ----------
+    public emit<T>(key: ComponentCtor<T>, ev: T): void
+    {
+        this._events(key).emit(ev);
+    }
+
+    public events<T>(key: ComponentCtor<T>): EventChannel<T>
+    {
+        return this._events(key);
+    }
+
+    public drainEvents<T>(key: ComponentCtor<T>, fn: (ev: T) => void): void
+    {
+        const ch = this.eventChannels.get(key) as EventChannel<T> | undefined;
+        if (!ch) return;
+        ch.drain(fn);
+    }
+
+    public clearEvents<T>(key?: ComponentCtor<T>): void
+    {
+        if (key) {
+            const ch = this.eventChannels.get(key);
+            if (!ch) return;
+            ch.clear();
+            return;
+        }
+
+        // clear all readable buffers
+        for (const ch of this.eventChannels.values()) ch.clear();
+    }
+
+    /** @internal Called by Schedule at phase boundaries */
+    public swapEvents(): void
+    {
+        for (const ch of this.eventChannels.values()) ch.swapBuffers();
+    }
+    //#endregion
+
 
     //#region ---------- Entity lifecycle ----------
     public spawn(): Entity
@@ -73,6 +180,13 @@ export class World implements WorldI
         return entity;
     }
 
+    public spawnMany(...items: ComponentCtorBundleItem[]): Entity
+    {
+        const e = this.spawn();
+        for (const [ctor, value] of items) this.add(e, ctor as any, value as any);
+        return e;
+    }
+
     public isAlive(e: Entity): boolean
     {
         return this.entities.isAlive(e);
@@ -84,6 +198,11 @@ export class World implements WorldI
         this._ensureNotIterating("despawn");
         this._removeFromArchetype(e);
         this.entities.kill(e);
+    }
+
+    public despawnMany(entities: Entity[]): void
+    {
+        for (const e of entities) this.despawn(e);
     }
     //#endregion
 
@@ -141,6 +260,11 @@ export class World implements WorldI
         });
     }
 
+    public addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void
+    {
+        for (const [ctor, value] of items) this.add(e, ctor as any, value as any);
+    }
+
     public remove<T>(e: Entity, ctor: ComponentCtor<T>): void
     {
         this._assertAlive(e, `remove(${this._formatCtor(ctor)})`);
@@ -158,6 +282,11 @@ export class World implements WorldI
             return src.column<any>(t)[srcMeta.row];
         });
     }
+
+    public removeMany(e: Entity, ...ctors: ComponentCtor<any>[]): void
+    {
+        for (const ctor of ctors) this.remove(e, ctor);
+    }
     //#endregion
 
     //region ---------- Queries ----------
@@ -165,6 +294,12 @@ export class World implements WorldI
      * Query all entities having all required component types.
      * Iterates archetypes (tables) and yields SoA columns for cache-friendly loops.
      */
+    public query<A>(c1: ComponentCtor<A>): Iterable<QueryRow1<A>>;
+    public query<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryRow2<A, B>>;
+    public query<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryRow3<A, B, C>>;
+    public query<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryRow4<A, B, C, D>>;
+    public query<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryRow5<A, B, C, D, E>>;
+    public query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryRow6<A, B, C, D, E, F>>;
     public query(...ctors: ComponentCtor<any>[]): Iterable<any>
     {
         // Preserve caller order for (c1,c2,c3,...) mapping.
@@ -304,6 +439,16 @@ export class World implements WorldI
             throw new Error(`${op} on stale entity ${this._formatEntity(e)} (alive=${meta?.alive ?? false}, gen=${meta?.gen ?? "n/a"})`);
         }
         return meta;
+    }
+
+    private _events<T>(key: ComponentCtor<T>): EventChannel<T>
+    {
+        let ch = this.eventChannels.get(key);
+        if (!ch) {
+            ch = new EventChannel<T>();
+            this.eventChannels.set(key, ch);
+        }
+        return ch as EventChannel<T>;
     }
     //#endregion
 }

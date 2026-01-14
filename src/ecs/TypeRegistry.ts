@@ -1,4 +1,4 @@
-import { TypeId, ComponentCtor } from "./Types";
+import type { TypeId, ComponentCtor } from "./Types";
 
 const ctorToId = new WeakMap<ComponentCtor<any>, TypeId>();
 let nextId: TypeId = 1;

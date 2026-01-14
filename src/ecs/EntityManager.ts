@@ -1,4 +1,4 @@
-import { Entity, EntityId, EntityMeta } from "./Types";
+import type { Entity, EntityId, EntityMeta } from "./Types";
 
 export class EntityManager
 {
