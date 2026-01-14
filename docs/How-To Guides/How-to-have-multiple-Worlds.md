@@ -25,5 +25,3 @@ groundSched.run(groundWorld, dt, ["input", "sim", "render"]);
 
 * copy values at a known point (end of `sim`, start of other `sim`)
 * or have a “bridge” step in your outer loop that reads from one world and writes into the other (via normal `add/set` or via `cmd()` + `flush()`)
-
-(Use whichever direction you need: globe → ground for selected vehicule, ground → globe for camera focus.)

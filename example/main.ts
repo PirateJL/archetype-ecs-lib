@@ -167,7 +167,7 @@ function enqueueSpawnCube(world: any, pos: THREE.Vector3) {
         three.scene.add(mesh);
         three.entityByObject.set(mesh, e);
 
-        // add components via commands so they apply in the SAME flush (your flush loops until empty)
+        // add components via commands so they apply in the SAME flush (flush loops until empty)
         world.cmd().add(e, Transform, (() => {
             const t = new Transform();
             t.pos.copy(pos);

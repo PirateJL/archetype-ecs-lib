@@ -30,7 +30,7 @@ With events:
 * producers don’t know consumers exist
 * consumers don’t know who produced the messages
 
-This keeps systems reusable and easy to rearrange in your `Schedule`.
+This keeps systems reusable and easy to rearrange in `Schedule`.
 
 ---
 
