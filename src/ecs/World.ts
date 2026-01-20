@@ -262,7 +262,47 @@ export class World implements WorldApi
 
     public addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void
     {
-        for (const [ctor, value] of items) this.add(e, ctor as any, value as any);
+        if (items.length === 0) return;
+
+        this._assertAlive(e, "addMany");
+        this._ensureNotIterating("addMany");
+
+        const srcMeta = this.entities.meta[e.id]!;
+        const src = this.archetypes[srcMeta.arch]!;
+
+        // Build component map: TypeId -> value
+        const newComps = new Map<TypeId, any>();
+        for (const [ctor, value] of items) {
+            const tid = typeId(ctor as any);
+            newComps.set(tid, value);
+        }
+
+        // Compute final signature: src.sig + new components
+        const dstSig = src.sig.slice() as TypeId[];
+        for (const tid of newComps.keys()) {
+            if (!src.has(tid)) {
+                // Insert in sorted order
+                let i = 0;
+                while (i < dstSig.length && dstSig[i] < tid) i++;
+                if (dstSig[i] !== tid) {
+                    dstSig.splice(i, 0, tid);
+                }
+            } else {
+                // Component already exists, update in-place
+                src.column<any>(tid)[srcMeta.row] = newComps.get(tid);
+                newComps.delete(tid);
+            }
+        }
+
+        // If all components were in-place updates, no move needed
+        if (newComps.size === 0) return;
+
+        // Single move to final archetype
+        const dst = this._getOrCreateArchetype(dstSig);
+        this._moveEntity(e, src, srcMeta.row, dst, (t: TypeId) => {
+            // Use new value if adding this component, otherwise copy from src
+            return newComps.has(t) ? newComps.get(t) : src.column<any>(t)[srcMeta.row];
+        });
     }
 
     public remove<T>(e: Entity, ctor: ComponentCtor<T>): void
@@ -285,7 +325,35 @@ export class World implements WorldApi
 
     public removeMany(e: Entity, ...ctors: ComponentCtor<any>[]): void
     {
-        for (const ctor of ctors) this.remove(e, ctor);
+        if (ctors.length === 0) return;
+
+        this._assertAlive(e, "removeMany");
+        this._ensureNotIterating("removeMany");
+
+        const srcMeta = this.entities.meta[e.id]!;
+        const src = this.archetypes[srcMeta.arch]!;
+
+        // Collect TypeIds to remove
+        const toRemove = new Set<TypeId>();
+        for (const ctor of ctors) {
+            const tid = typeId(ctor);
+            if (src.has(tid)) {
+                toRemove.add(tid);
+            }
+        }
+
+        // If nothing to remove, no-op
+        if (toRemove.size === 0) return;
+
+        // Compute final signature: src.sig - removed components
+        const dstSig = src.sig.filter(tid => !toRemove.has(tid));
+
+        // Single move to final archetype
+        const dst = this._getOrCreateArchetype(dstSig);
+        this._moveEntity(e, src, srcMeta.row, dst, (t: TypeId) => {
+            // Copy all components except removed ones (dstSig guarantees t is not removed)
+            return src.column<any>(t)[srcMeta.row];
+        });
     }
     //#endregion
 
