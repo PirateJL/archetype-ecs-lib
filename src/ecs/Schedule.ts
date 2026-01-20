@@ -19,21 +19,24 @@ export class Schedule {
     {
         for (const phase of phaseOrder) {
             const list = this.phases.get(phase);
-            if (!list) continue;
 
-            for (const fn of list) {
-                try {
-                    fn(world, dt);
-                } catch (error: any) {
-                    const sysName = fn.name && fn.name.length > 0 ? fn.name : "<anonymous>";
-                    const msg = error.message !== undefined && typeof error.message === 'string' ?
-                        error.message : JSON.stringify(error);
-                    const e = new Error(`[phase=${phase} system=${sysName}] ${msg}`);
-                    (e as any).cause = error;
-                    throw e;
+            // Run systems only if they exist for this phase
+            if (list) {
+                for (const fn of list) {
+                    try {
+                        fn(world, dt);
+                    } catch (error: any) {
+                        const sysName = fn.name && fn.name.length > 0 ? fn.name : "<anonymous>";
+                        const msg = error.message !== undefined && typeof error.message === 'string' ?
+                            error.message : JSON.stringify(error);
+                        const e = new Error(`[phase=${phase} system=${sysName}] ${msg}`);
+                        (e as any).cause = error;
+                        throw e;
+                    }
                 }
             }
 
+            // Always run phase boundary logic, even if no systems registered
             // apply deferred commands between phases
             if (world.cmd().hasPending()) {
                 world.flush();
