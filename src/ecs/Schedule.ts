@@ -1,8 +1,12 @@
 import type { SystemFn, WorldApi } from "./Types";
 
 /**
- * Minimal scheduler that supports phases, without borrow-checking.
- * (Add conflict detection later if you want parallelism.)
+ * Minimal multiphase scheduler.
+ * Use this when you need explicit control over system execution order and
+ * phase-gate event/command propagation.
+ *
+ * @example
+ * schedule.run(world, dt, ['input', 'update', 'render']);
  */
 export class Schedule {
     private readonly phases = new Map<string, SystemFn[]>();
@@ -15,6 +19,12 @@ export class Schedule {
         return this;
     }
 
+    /**
+     * Executes systems in the specified phase order.
+     * Flushes commands and swaps events at EVERY phase boundary.
+     *
+     * @note When using this, avoid calling `world.update()`.
+     */
     run(world: WorldApi, dt: number, phaseOrder: string[]): void
     {
         for (const phase of phaseOrder) {

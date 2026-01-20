@@ -58,9 +58,11 @@ export class World implements WorldApi
     }
 
     /**
-     * Run a frame:
-     * - run systems in order
-     * - flush queued commands (structural changes)
+     * Simple single-phase update.
+     * Runs all systems added via `addSystem()`, flushes commands, and swaps events once.
+     *
+     * @note If you are using `Schedule` for multiphase updates, do NOT use this method.
+     * Use `schedule.run(world, dt, phases)` instead.
      */
     public update(dt: number): void
     {
@@ -70,6 +72,7 @@ export class World implements WorldApi
         } finally {
             this._iterateDepth--;
             this.flush();
+            this.swapEvents();
         }
     }
 
