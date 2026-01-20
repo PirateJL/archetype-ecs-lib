@@ -26,7 +26,8 @@ export class Schedule {
                     fn(world, dt);
                 } catch (error: any) {
                     const sysName = fn.name && fn.name.length > 0 ? fn.name : "<anonymous>";
-                    const msg = error.message !== undefined && typeof 'string' ? error.message : JSON.stringify(error);
+                    const msg = error.message !== undefined && typeof error.message === 'string' ?
+                        error.message : JSON.stringify(error);
                     const e = new Error(`[phase=${phase} system=${sysName}] ${msg}`);
                     (e as any).cause = error;
                     throw e;
