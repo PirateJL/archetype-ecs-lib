@@ -133,7 +133,7 @@ export interface WorldApi
 
     //#region ----- entity lifecycle -----
     spawn(): Entity;
-    spawnMany(...items: ComponentCtorBundleItem[]): void;
+    spawnMany(...items: ComponentCtorBundleItem[]): Entity;
     despawn(e: Entity): void;
     despawnMany(entities: Entity[]): void;
     isAlive(e: Entity): boolean;
