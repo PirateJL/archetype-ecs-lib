@@ -102,7 +102,7 @@ export class World implements WorldApi
         if (!this.resources.has(key)) {
             const name = this._formatCtor(key);
             throw new Error(
-                `Missing resource ${name}. ` +
+                `requireResource(${name}) failed: resource missing. ` +
                 `Insert it via world.setResource(${name}, value) or world.initResource(${name}, () => value).`
             );
         }
@@ -227,7 +227,8 @@ export class World implements WorldApi
 
     public set<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
-        const meta = this._assertAlive(e, `set(${this._formatCtor(ctor)})`);
+        const op = `set(${this._formatCtor(ctor)})`;
+        const meta = this._assertAlive(e, op);
 
         const tid = typeId(ctor);
         const a = this.archetypes[meta.arch]!;
@@ -238,9 +239,10 @@ export class World implements WorldApi
 
     public add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
-        this._assertAlive(e, `add(${this._formatCtor(ctor)})`);
+        const op = `add(${this._formatCtor(ctor)})`;
+        this._assertAlive(e, op);
+        this._ensureNotIterating(op);
 
-        this._ensureNotIterating("add");
         const tid = typeId(ctor);
         const srcMeta = this.entities.meta[e.id]!;
         const src = this.archetypes[srcMeta.arch]!;
@@ -307,8 +309,10 @@ export class World implements WorldApi
 
     public remove<T>(e: Entity, ctor: ComponentCtor<T>): void
     {
-        this._assertAlive(e, `remove(${this._formatCtor(ctor)})`);
-        this._ensureNotIterating("remove");
+        const op = `remove(${this._formatCtor(ctor)})`;
+        this._assertAlive(e, op);
+        this._ensureNotIterating(op);
+
         const tid = typeId(ctor);
         const srcMeta = this.entities.meta[e.id]!;
         const src = this.archetypes[srcMeta.arch]!;
@@ -504,7 +508,8 @@ export class World implements WorldApi
     {
         const meta: EntityMeta = this.entities.meta[e.id];
         if (!this.entities.isAlive(e)) {
-            throw new Error(`${op} on stale entity ${this._formatEntity(e)} (alive=${meta?.alive ?? false}, gen=${meta?.gen ?? "n/a"})`);
+            const status = meta ? `alive=${meta.alive}, gen=${meta.gen}` : "not found";
+            throw new Error(`${op} failed: stale entity ${this._formatEntity(e)} (${status})`);
         }
         return meta;
     }
