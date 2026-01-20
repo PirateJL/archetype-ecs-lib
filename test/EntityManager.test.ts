@@ -1,5 +1,4 @@
-import { Entity } from '../src/ecs/Types';
-import { World } from '../src/ecs/World';
+import { Entity, World } from '../src';
 
 describe('Entity', () => {
     let world: World;
@@ -9,7 +8,7 @@ describe('Entity', () => {
         world = new World();
         entity = world.spawn();
     });
-    
+
     it('should spawn an entity with an id of 1', () => {
         expect(entity).toBeDefined();
         expect(entity.id).toBe(1);

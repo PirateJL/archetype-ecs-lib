@@ -1,4 +1,4 @@
-import { ComponentCtor, Schedule, WorldApi } from '../src/index';
+import { ComponentCtor, Schedule, WorldApi } from '../src';
 
 describe("Schedule", () => {
     test("runs systems by phase order and flushes between phases that exist", () => {

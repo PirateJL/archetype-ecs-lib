@@ -1,5 +1,4 @@
-import { World } from "../src/ecs/World";
-import type { ComponentCtor } from "../src/ecs/Types";
+import { type ComponentCtor, World } from "../src";
 
 describe("Resources (singletons)", () => {
     class FooRes {
@@ -11,7 +10,7 @@ describe("Resources (singletons)", () => {
 
         expect(w.hasResource(FooRes)).toBe(false);
         expect(w.getResource(FooRes)).toBeUndefined();
-        expect(() => w.requireResource(FooRes)).toThrow(/missing resource/i);
+        expect(() => w.requireResource(FooRes)).toThrow(/failed: resource missing/i);
     });
 
     test("setResource stores value; getResource/requireResource return it; hasResource is true", () => {
