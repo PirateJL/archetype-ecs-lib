@@ -66,9 +66,9 @@ describe("Schedule", () => {
 
         sched.run(world, 0.016, ["a", "b", "c"]); // c has no systems
 
-        expect(calls).toEqual(["a1", "a2", "flush", "b1", "flush"]);
-        expect(world.flush).toHaveBeenCalledTimes(2);
-        expect(world.swapEvents).toHaveBeenCalledTimes(2);
+        expect(calls).toEqual(["a1", "a2", "flush", "b1", "flush", "flush"]);
+        expect(world.flush).toHaveBeenCalledTimes(3);
+        expect(world.swapEvents).toHaveBeenCalledTimes(3);
     });
 
     test("add is chainable", () => {
