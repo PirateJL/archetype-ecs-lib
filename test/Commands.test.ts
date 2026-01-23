@@ -1,5 +1,4 @@
-import { Commands } from "../src/ecs/Commands";
-import type { Entity } from "../src/ecs/Types";
+import { Commands, type Entity } from "../src";
 
 class Position
 {
