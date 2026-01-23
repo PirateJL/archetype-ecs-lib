@@ -1,4 +1,5 @@
 import type { SystemFn, WorldApi } from "./Types";
+import { World } from "./World";
 
 /**
  * Minimal multiphase scheduler.
@@ -27,6 +28,13 @@ export class Schedule {
      */
     run(world: WorldApi, dt: number, phaseOrder: string[]): void
     {
+        // Runtime conflict detection (cast to access private fields)
+        const worldInstance = world as World;
+        if (worldInstance._hasUsedWorldUpdate && !worldInstance._hasWarnedAboutConflict) {
+            worldInstance._warnAboutLifecycleConflict("Schedule.run");
+        }
+        worldInstance._hasUsedScheduleRun = true;
+
         for (const phase of phaseOrder) {
             const list = this.phases.get(phase);
 

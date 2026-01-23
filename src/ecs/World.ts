@@ -36,6 +36,10 @@ export class World implements WorldApi
     private readonly resources = new Map<ComponentCtor<any>, any>();
     private readonly eventChannels = new Map<ComponentCtor<any>, EventChannel<any>>();
 
+    // Runtime warning system: track lifecycle usage to detect conflicts
+    public _hasUsedWorldUpdate = false;
+    public _hasUsedScheduleRun = false;
+    public _hasWarnedAboutConflict = false;
 
     constructor()
     {
@@ -61,11 +65,32 @@ export class World implements WorldApi
      * Simple single-phase update.
      * Runs all systems added via `addSystem()`, flushes commands, and swaps events once.
      *
+     * This is the recommended approach for:
+     * - Simple applications with basic game loops
+     * - Single-phase system execution
+     * - Rapid prototyping
+     *
+     * @example
+     * ```typescript
+     * // Simple game loop
+     * function gameLoop(dt: number) {
+     *   world.update(dt);
+     * }
+     * ```
+     *
      * @note If you are using `Schedule` for multiphase updates, do NOT use this method.
-     * Use `schedule.run(world, dt, phases)` instead.
+     *  Use `schedule.run(world, dt, phases)` instead.
+     *
+     * @throws {Error} If both World.update() and Schedule.run() are used on the same World instance
      */
     public update(dt: number): void
     {
+        // Runtime conflict detection
+        if (this._hasUsedScheduleRun && !this._hasWarnedAboutConflict) {
+            this._warnAboutLifecycleConflict("World.update");
+        }
+        this._hasUsedWorldUpdate = true;
+
         this._iterateDepth++;
         try {
             for (const s of this.systems) s(this, dt);
@@ -525,6 +550,28 @@ export class World implements WorldApi
             this.eventChannels.set(key, ch);
         }
         return ch as EventChannel<T>;
+    }
+
+    /**
+     * @internal Warns about lifecycle method conflicts in development mode
+     */
+    public _warnAboutLifecycleConflict(method: "World.update" | "Schedule.run"): void
+    {
+        if (this._hasWarnedAboutConflict) return;
+        const otherMethod = method === "World.update" ? "Schedule.run" : "World.update";
+        console.warn(
+            `⚠️  ECS Lifecycle Conflict Detected!\n` +
+            `You are using both ${method} and ${otherMethod} on the same World instance.\n` +
+            `This can cause:\n` +
+            `- Double command flushes\n` +
+            `- Confusing event visibility\n` +
+            `- Unclear lifecycle semantics\n\n` +
+            `Recommended fix:\n` +
+            `[- Use World.update() for simple single-phase applications\n](cci:1://file:///home/jdu/Workplace/archetype-ecs-lib/src/ecs/World.ts:59:4-76:5)` +
+            `[- Use Schedule.run() for multi-phase applications with explicit control\n\n](cci:1://file:///home/jdu/Workplace/archetype-ecs-lib/src/ecs/Schedule.ts:21:4-57:5)` +
+            `Choose ONE approach and stick with it.`
+        );
+        this._hasWarnedAboutConflict = true;
     }
     //#endregion
 }
