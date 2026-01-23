@@ -64,6 +64,8 @@ export interface WorldApi
     // deferred ops
     cmd(): CommandsApi;
 
+    addSystem(fn: SystemFn): this;
+    update(dt: number): void;
     flush(): void;
 
     //#region ----- Resources lifecycle -----

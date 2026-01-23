@@ -7,6 +7,8 @@ describe("Schedule", () => {
         const calls: string[] = [];
         // Minimal WorldApi stub for Schedule + SystemFn typing
         const world: WorldApi = {
+            addSystem: jest.fn(),
+            update: jest.fn(),
             flush: jest.fn(() => calls.push("flush")),
 
             // ---- Resources (minimal stubs, no real storage) ----
@@ -21,7 +23,6 @@ describe("Schedule", () => {
             initResource: jest.fn(<T>(_key: ComponentCtor<T>, factory: () => T) => factory()),
 
             // ---- Events (minimal stubs, no real storage) ----
-
             emit: jest.fn(),
             events: jest.fn(),
             drainEvents: jest.fn(),
