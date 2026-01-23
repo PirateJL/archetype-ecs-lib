@@ -30,7 +30,7 @@ export class Schedule {
     {
         // Runtime conflict detection (cast to access private fields)
         const worldInstance = world as World;
-        if (worldInstance._hasUsedWorldUpdate && !worldInstance._hasWarnedAboutConflict) {
+        if (worldInstance._hasUsedWorldUpdate) {
             worldInstance._warnAboutLifecycleConflict("Schedule.run");
         }
         worldInstance._hasUsedScheduleRun = true;

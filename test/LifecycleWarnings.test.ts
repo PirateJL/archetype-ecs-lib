@@ -1,79 +1,76 @@
 import { World, Schedule } from '../src';
 
 describe("Lifecycle Runtime Warnings", () => {
-    let consoleWarnSpy: jest.SpyInstance;
-
-    beforeEach(() => {
-        consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-    });
-
-    afterEach(() => {
-        consoleWarnSpy.mockRestore();
-    });
-
-    test("warns when World.update() is used after Schedule.run()", () => {
+    test("throws error when World.update() is used after Schedule.run()", () => {
         const world = new World();
         const schedule = new Schedule();
 
         // Use Schedule first
         schedule.run(world, 0.016, ['update']);
         
-        // Then use World.update - should trigger warning
-        world.update(0.016);
-
-        expect(consoleWarnSpy).toHaveBeenCalledWith(
-            expect.stringContaining("ECS Lifecycle Conflict Detected!")
-        );
-        expect(consoleWarnSpy).toHaveBeenCalledWith(
-            expect.stringContaining("You are using both World.update and Schedule.run")
+        // Then use World.update - should throw error
+        expect(() => world.update(0.016)).toThrow(
+            expect.objectContaining({
+                message: expect.stringContaining("ECS Lifecycle Conflict Detected!")
+            })
         );
     });
 
-    test("warns when Schedule.run() is used after World.update()", () => {
+    test("throws error when Schedule.run() is used after World.update()", () => {
         const world = new World();
         const schedule = new Schedule();
 
         // Use World.update first
         world.update(0.016);
         
-        // Then use Schedule - should trigger warning
-        schedule.run(world, 0.016, ['update']);
-
-        expect(consoleWarnSpy).toHaveBeenCalledWith(
-            expect.stringContaining("ECS Lifecycle Conflict Detected!")
+        // Then use Schedule - should throw error
+        expect(() => schedule.run(world, 0.016, ['update'])).toThrow(
+            expect.objectContaining({
+                message: expect.stringContaining("ECS Lifecycle Conflict Detected!")
+            })
         );
     });
 
-    test("only warns once per World instance", () => {
+    test("throws error every time when mixing lifecycle methods", () => {
         const world = new World();
         const schedule = new Schedule();
 
-        // Use both methods multiple times
+        // Use World.update first
         world.update(0.016);
-        schedule.run(world, 0.016, ['update']);
-        world.update(0.016); // Should not warn again
-        schedule.run(world, 0.016, ['render']); // Should not warn again
-
-        expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
+        
+        // Every subsequent Schedule.run should throw
+        expect(() => schedule.run(world, 0.016, ['update'])).toThrow();
+        expect(() => schedule.run(world, 0.016, ['render'])).toThrow();
     });
 
-    test("does not warn when using only World.update()", () => {
+    test("does not throw when using only World.update()", () => {
         const world = new World();
 
-        world.update(0.016);
-        world.update(0.016);
-        world.update(0.016);
-
-        expect(consoleWarnSpy).not.toHaveBeenCalled();
+        expect(() => {
+            world.update(0.016);
+            world.update(0.016);
+            world.update(0.016);
+        }).not.toThrow();
     });
 
-    test("does not warn when using only Schedule.run()", () => {
+    test("does not throw when using only Schedule.run()", () => {
         const world = new World();
         const schedule = new Schedule();
 
-        schedule.run(world, 0.016, ['update']);
-        schedule.run(world, 0.016, ['render']);
+        expect(() => {
+            schedule.run(world, 0.016, ['update']);
+            schedule.run(world, 0.016, ['render']);
+        }).not.toThrow();
+    });
 
-        expect(consoleWarnSpy).not.toHaveBeenCalled();
+    test("error message contains both method names", () => {
+        const world = new World();
+        const schedule = new Schedule();
+
+        world.update(0.016);
+        
+        expect(() => schedule.run(world, 0.016, ['update'])).toThrow(
+            /You are using both Schedule.run and World.update on the same World instance./i
+        );
     });
 });

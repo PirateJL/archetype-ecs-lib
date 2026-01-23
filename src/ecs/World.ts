@@ -39,7 +39,6 @@ export class World implements WorldApi
     // Runtime warning system: track lifecycle usage to detect conflicts
     public _hasUsedWorldUpdate = false;
     public _hasUsedScheduleRun = false;
-    public _hasWarnedAboutConflict = false;
 
     constructor()
     {
@@ -86,7 +85,7 @@ export class World implements WorldApi
     public update(dt: number): void
     {
         // Runtime conflict detection
-        if (this._hasUsedScheduleRun && !this._hasWarnedAboutConflict) {
+        if (this._hasUsedScheduleRun) {
             this._warnAboutLifecycleConflict("World.update");
         }
         this._hasUsedWorldUpdate = true;
@@ -557,9 +556,8 @@ export class World implements WorldApi
      */
     public _warnAboutLifecycleConflict(method: "World.update" | "Schedule.run"): void
     {
-        if (this._hasWarnedAboutConflict) return;
         const otherMethod = method === "World.update" ? "Schedule.run" : "World.update";
-        console.warn(
+        throw new Error(
             `⚠️  ECS Lifecycle Conflict Detected!\n` +
             `You are using both ${method} and ${otherMethod} on the same World instance.\n` +
             `This can cause:\n` +
@@ -571,7 +569,6 @@ export class World implements WorldApi
             `[- Use Schedule.run() for multi-phase applications with explicit control\n\n](cci:1://file:///home/jdu/Workplace/archetype-ecs-lib/src/ecs/Schedule.ts:21:4-57:5)` +
             `Choose ONE approach and stick with it.`
         );
-        this._hasWarnedAboutConflict = true;
     }
     //#endregion
 }
