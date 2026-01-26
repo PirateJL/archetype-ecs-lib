@@ -1,5 +1,4 @@
-import { WorldApi } from "../src/ecs/Types";
-import { World } from "../src/ecs/World";
+import { World, WorldApi } from "../src";
 
 class Position { constructor(public x = 0, public y = 0) {} }
 class Velocity { constructor(public dx = 0, public dy = 0) {} }
@@ -89,10 +88,10 @@ describe("World", () => {
         const e = w.spawn();
         w.despawn(e);
 
-        expect(() => w.add(e, Position, new Position(1, 1))).toThrow(/add\(Position\) on stale entity/i);
+        expect(() => w.add(e, Position, new Position(1, 1))).toThrow(/add\(Position\) failed: stale entity/i);
         expect(w.get(e, Position)).toBeUndefined();
-        expect(() => w.set(e, Position, new Position(9, 9))).toThrow(/set\(Position\) on stale entity/i);
-        expect(() => w.remove(e, Position)).toThrow(/remove\(Position\) on stale entity/i);
+        expect(() => w.set(e, Position, new Position(9, 9))).toThrow(/set\(Position\) failed: stale entity/i);
+        expect(() => w.remove(e, Position)).toThrow(/remove\(Position\) failed: stale entity/i);
     });
 
     it("despawn makes entity dead and handle becomes invalid", () => {
@@ -152,7 +151,7 @@ describe("World", () => {
     test("returns components in the same order as ctor arguments (2 components)", () => {
         // Isolate module state so TypeRegistry's global TypeId counter resets for this test.
         jest.isolateModules(() => {
-            const { World } = require("../src/ecs/World");
+            const { World } = require("../src");
 
             class Position {
                 constructor(public x = 0, public y = 0) {}
@@ -183,7 +182,7 @@ describe("World", () => {
 
     test("returns components in the same order as ctor arguments (3 components)", () => {
         jest.isolateModules(() => {
-            const { World } = require("../src/ecs/World");
+            const { World } = require("../src");
 
             class A { constructor(public v = "a") {} }
             class B { constructor(public v = "b") {} }

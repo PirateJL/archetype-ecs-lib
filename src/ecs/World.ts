@@ -36,6 +36,9 @@ export class World implements WorldApi
     private readonly resources = new Map<ComponentCtor<any>, any>();
     private readonly eventChannels = new Map<ComponentCtor<any>, EventChannel<any>>();
 
+    // Runtime warning system: track lifecycle usage to detect conflicts
+    public _hasUsedWorldUpdate = false;
+    public _hasUsedScheduleRun = false;
 
     constructor()
     {
@@ -58,18 +61,42 @@ export class World implements WorldApi
     }
 
     /**
-     * Run a frame:
-     * - run systems in order
-     * - flush queued commands (structural changes)
+     * Simple single-phase update.
+     * Runs all systems added via `addSystem()`, flushes commands, and swaps events once.
+     *
+     * This is the recommended approach for:
+     * - Simple applications with basic game loops
+     * - Single-phase system execution
+     * - Rapid prototyping
+     *
+     * @example
+     * ```typescript
+     * // Simple game loop
+     * function gameLoop(dt: number) {
+     *   world.update(dt);
+     * }
+     * ```
+     *
+     * @note If you are using `Schedule` for multiphase updates, do NOT use this method.
+     *  Use `schedule.run(world, dt, phases)` instead.
+     *
+     * @throws {Error} If both World.update() and Schedule.run() are used on the same World instance
      */
     public update(dt: number): void
     {
+        // Runtime conflict detection
+        if (this._hasUsedScheduleRun) {
+            this._warnAboutLifecycleConflict("World.update");
+        }
+        this._hasUsedWorldUpdate = true;
+
         this._iterateDepth++;
         try {
             for (const s of this.systems) s(this, dt);
         } finally {
             this._iterateDepth--;
             this.flush();
+            this.swapEvents();
         }
     }
 
@@ -102,7 +129,7 @@ export class World implements WorldApi
         if (!this.resources.has(key)) {
             const name = this._formatCtor(key);
             throw new Error(
-                `Missing resource ${name}. ` +
+                `requireResource(${name}) failed: resource missing. ` +
                 `Insert it via world.setResource(${name}, value) or world.initResource(${name}, () => value).`
             );
         }
@@ -227,7 +254,8 @@ export class World implements WorldApi
 
     public set<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
-        const meta = this._assertAlive(e, `set(${this._formatCtor(ctor)})`);
+        const op = `set(${this._formatCtor(ctor)})`;
+        const meta = this._assertAlive(e, op);
 
         const tid = typeId(ctor);
         const a = this.archetypes[meta.arch]!;
@@ -238,9 +266,10 @@ export class World implements WorldApi
 
     public add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
-        this._assertAlive(e, `add(${this._formatCtor(ctor)})`);
+        const op = `add(${this._formatCtor(ctor)})`;
+        this._assertAlive(e, op);
+        this._ensureNotIterating(op);
 
-        this._ensureNotIterating("add");
         const tid = typeId(ctor);
         const srcMeta = this.entities.meta[e.id]!;
         const src = this.archetypes[srcMeta.arch]!;
@@ -262,13 +291,55 @@ export class World implements WorldApi
 
     public addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void
     {
-        for (const [ctor, value] of items) this.add(e, ctor as any, value as any);
+        if (items.length === 0) return;
+
+        this._assertAlive(e, "addMany");
+        this._ensureNotIterating("addMany");
+
+        const srcMeta = this.entities.meta[e.id]!;
+        const src = this.archetypes[srcMeta.arch]!;
+
+        // Build component map: TypeId -> value
+        const newComps = new Map<TypeId, any>();
+        for (const [ctor, value] of items) {
+            const tid = typeId(ctor as any);
+            newComps.set(tid, value);
+        }
+
+        // Compute final signature: src.sig + new components
+        const dstSig = src.sig.slice() as TypeId[];
+        for (const tid of newComps.keys()) {
+            if (!src.has(tid)) {
+                // Insert in sorted order
+                let i = 0;
+                while (i < dstSig.length && dstSig[i] < tid) i++;
+                if (dstSig[i] !== tid) {
+                    dstSig.splice(i, 0, tid);
+                }
+            } else {
+                // Component already exists, update in-place
+                src.column<any>(tid)[srcMeta.row] = newComps.get(tid);
+                newComps.delete(tid);
+            }
+        }
+
+        // If all components were in-place updates, no move needed
+        if (newComps.size === 0) return;
+
+        // Single move to final archetype
+        const dst = this._getOrCreateArchetype(dstSig);
+        this._moveEntity(e, src, srcMeta.row, dst, (t: TypeId) => {
+            // Use new value if adding this component, otherwise copy from src
+            return newComps.has(t) ? newComps.get(t) : src.column<any>(t)[srcMeta.row];
+        });
     }
 
     public remove<T>(e: Entity, ctor: ComponentCtor<T>): void
     {
-        this._assertAlive(e, `remove(${this._formatCtor(ctor)})`);
-        this._ensureNotIterating("remove");
+        const op = `remove(${this._formatCtor(ctor)})`;
+        this._assertAlive(e, op);
+        this._ensureNotIterating(op);
+
         const tid = typeId(ctor);
         const srcMeta = this.entities.meta[e.id]!;
         const src = this.archetypes[srcMeta.arch]!;
@@ -285,7 +356,35 @@ export class World implements WorldApi
 
     public removeMany(e: Entity, ...ctors: ComponentCtor<any>[]): void
     {
-        for (const ctor of ctors) this.remove(e, ctor);
+        if (ctors.length === 0) return;
+
+        this._assertAlive(e, "removeMany");
+        this._ensureNotIterating("removeMany");
+
+        const srcMeta = this.entities.meta[e.id]!;
+        const src = this.archetypes[srcMeta.arch]!;
+
+        // Collect TypeIds to remove
+        const toRemove = new Set<TypeId>();
+        for (const ctor of ctors) {
+            const tid = typeId(ctor);
+            if (src.has(tid)) {
+                toRemove.add(tid);
+            }
+        }
+
+        // If nothing to remove, no-op
+        if (toRemove.size === 0) return;
+
+        // Compute final signature: src.sig - removed components
+        const dstSig = src.sig.filter(tid => !toRemove.has(tid));
+
+        // Single move to final archetype
+        const dst = this._getOrCreateArchetype(dstSig);
+        this._moveEntity(e, src, srcMeta.row, dst, (t: TypeId) => {
+            // Copy all components except removed ones (dstSig guarantees t is not removed)
+            return src.column<any>(t)[srcMeta.row];
+        });
     }
     //#endregion
 
@@ -436,7 +535,8 @@ export class World implements WorldApi
     {
         const meta: EntityMeta = this.entities.meta[e.id];
         if (!this.entities.isAlive(e)) {
-            throw new Error(`${op} on stale entity ${this._formatEntity(e)} (alive=${meta?.alive ?? false}, gen=${meta?.gen ?? "n/a"})`);
+            const status = meta ? `alive=${meta.alive}, gen=${meta.gen}` : "not found";
+            throw new Error(`${op} failed: stale entity ${this._formatEntity(e)} (${status})`);
         }
         return meta;
     }
@@ -449,6 +549,26 @@ export class World implements WorldApi
             this.eventChannels.set(key, ch);
         }
         return ch as EventChannel<T>;
+    }
+
+    /**
+     * @internal Warns about lifecycle method conflicts in development mode
+     */
+    public _warnAboutLifecycleConflict(method: "World.update" | "Schedule.run"): void
+    {
+        const otherMethod = method === "World.update" ? "Schedule.run" : "World.update";
+        throw new Error(
+            `⚠️  ECS Lifecycle Conflict Detected!\n` +
+            `You are using both ${method} and ${otherMethod} on the same World instance.\n` +
+            `This can cause:\n` +
+            `- Double command flushes\n` +
+            `- Confusing event visibility\n` +
+            `- Unclear lifecycle semantics\n\n` +
+            `Recommended fix:\n` +
+            `[- Use World.update() for simple single-phase applications\n](cci:1://file:///home/jdu/Workplace/archetype-ecs-lib/src/ecs/World.ts:59:4-76:5)` +
+            `[- Use Schedule.run() for multi-phase applications with explicit control\n\n](cci:1://file:///home/jdu/Workplace/archetype-ecs-lib/src/ecs/Schedule.ts:21:4-57:5)` +
+            `Choose ONE approach and stick with it.`
+        );
     }
     //#endregion
 }

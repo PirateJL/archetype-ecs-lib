@@ -1,4 +1,4 @@
-import { typeId } from "../src/ecs/TypeRegistry";
+import { typeId } from "../src";
 
 class Position { constructor(public x = 0, public y = 0) {} }
 class Velocity { constructor(public dx = 0, public dy = 0) {} }
