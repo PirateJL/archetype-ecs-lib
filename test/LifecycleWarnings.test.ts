@@ -7,7 +7,7 @@ describe("Lifecycle Runtime Warnings", () => {
 
         // Use Schedule first
         schedule.run(world, 0.016, ['update']);
-        
+
         // Then use World.update - should throw error
         expect(() => world.update(0.016)).toThrow(
             expect.objectContaining({
@@ -22,7 +22,7 @@ describe("Lifecycle Runtime Warnings", () => {
 
         // Use World.update first
         world.update(0.016);
-        
+
         // Then use Schedule - should throw error
         expect(() => schedule.run(world, 0.016, ['update'])).toThrow(
             expect.objectContaining({
@@ -37,7 +37,7 @@ describe("Lifecycle Runtime Warnings", () => {
 
         // Use World.update first
         world.update(0.016);
-        
+
         // Every subsequent Schedule.run should throw
         expect(() => schedule.run(world, 0.016, ['update'])).toThrow();
         expect(() => schedule.run(world, 0.016, ['render'])).toThrow();
@@ -68,7 +68,7 @@ describe("Lifecycle Runtime Warnings", () => {
         const schedule = new Schedule();
 
         world.update(0.016);
-        
+
         expect(() => schedule.run(world, 0.016, ['update'])).toThrow(
             /You are using both Schedule.run and World.update on the same World instance./i
         );

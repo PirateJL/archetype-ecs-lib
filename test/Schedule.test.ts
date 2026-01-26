@@ -59,6 +59,12 @@ describe("Schedule", () => {
             query: jest.fn(function* () {
                 // empty iterable
             }),
+            queryTables: jest.fn(function* () {
+                // empty iterable
+            }),
+            queryEach: jest.fn(function* () {
+                // empty iterable
+            }),
         };
 
         sched.add("a", (_w: WorldApi, _dt: number) => calls.push("a1"));
