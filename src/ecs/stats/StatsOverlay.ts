@@ -107,6 +107,7 @@ export class StatsOverlay
             `dt=${(s.dt * 1000).toFixed(2)}ms frame=${s.frameMs.toFixed(2)}ms pendingCmd=${String(s.pendingCommands)}\n` +
             `phases: ${topPhases}`;
 
+        // tslint:disable-next-line:no-console
         console.debug(`phases: ${topPhases}`);
 
         this.drawFrameGraph(h);
@@ -146,13 +147,13 @@ export class StatsOverlay
 
         for (let i = 0; i < series.length; i++) {
             const ms = series[i]!;
-            const x = i * barW;
-            const y = toY(ms);
-            const bh = hh - y;
+            const _x = i * barW;
+            const _y = toY(ms);
+            const bh = hh - _y;
 
             const slow = ms > this.opts.slowFrameMs;
             ctx.fillStyle = slow ? slowBarColor : okBarColor;
-            ctx.fillRect(x, y, drawW, bh);
+            ctx.fillRect(_x, _y, drawW, bh);
         }
 
         // ---- Legend (top-left inside graph) ----
@@ -180,7 +181,7 @@ export class StatsOverlay
         ctx.fillRect(6, 6, boxW, boxH);
 
         // row 1: target line sample
-        let x = 6 + pad;
+        const x = 6 + pad;
         let y = 6 + pad + lineH * 0.5;
         ctx.strokeStyle = targetLineColor;
         ctx.lineWidth = 2;
