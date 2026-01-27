@@ -460,8 +460,8 @@ export class World implements WorldApi
 
                     const out: any = { entities: a.entities };
                     for (let i = 0; i < requested.length; i++) {
-                            out[`c${i + 1}`] = a.column<any>(requested[i]!);
-                        }
+                        out[`c${i + 1}`] = a.column<any>(requested[i]!);
+                    }
                     yield out;
                 }
             } finally {
