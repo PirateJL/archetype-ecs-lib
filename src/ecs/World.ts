@@ -18,7 +18,7 @@ import type {
     Signature,
     SystemFn,
     TypeId,
-    WorldApi
+    WorldApi, WorldStats, WorldStatsHistory
 } from "./Types";
 
 export class World implements WorldApi
@@ -40,12 +40,188 @@ export class World implements WorldApi
     public _hasUsedWorldUpdate = false;
     public _hasUsedScheduleRun = false;
 
+    // ---- Profiling / stats (last completed frame) ----
+    private _profilingEnabled = true;
+    private _frameCounter = 0;
+    private _lastDt = 0;
+    private _lastFrameMs = 0;
+    private readonly _phaseMs = new Map<string, number>();
+    private readonly _systemMs = new Map<string, number>();
+
+    // ---- Profiling history (rolling window) ----
+    private _historyCapacity = 120;
+    private readonly _histDt: number[] = [];
+    private readonly _histFrameMs: number[] = [];
+    private readonly _histPhaseMs = new Map<string, number[]>();
+    private readonly _histSystemMs = new Map<string, number[]>();
+
     constructor()
     {
         // Archetype 0: empty signature
         const archetype0 = new Archetype(0, []);
         this.archetypes[0] = archetype0;
         this.archByKey.set("", archetype0);
+    }
+
+    public setProfilingEnabled(enabled: boolean): void
+    {
+        this._profilingEnabled = enabled;
+    }
+
+    public setProfilingHistorySize(frames: number): void
+    {
+        const n = Math.max(0, Math.floor(frames));
+        this._historyCapacity = n;
+        this._trimHistoryToCapacity();
+    }
+
+    public statsHistory(): WorldStatsHistory
+    {
+        const phaseMs: Record<string, ReadonlyArray<number>> = Object.create(null);
+        for (const [k, v] of this._histPhaseMs) phaseMs[k] = v;
+
+        const systemMs: Record<string, ReadonlyArray<number>> = Object.create(null);
+        for (const [k, v] of this._histSystemMs) systemMs[k] = v;
+
+        return {
+            capacity: this._historyCapacity,
+            size: this._histFrameMs.length,
+            dt: this._histDt,
+            frameMs: this._histFrameMs,
+            phaseMs,
+            systemMs
+        };
+    }
+
+    /**
+     * Rich runtime statistics (counts + last-frame timings).
+     * Note: `aliveEntities` is computed on demand (O(n) over entity meta).
+     */
+    public stats(): WorldStats
+    {
+        let alive = 0;
+        for (let id = 1; id < this.entities.meta.length; id++) {
+            const m = this.entities.meta[id];
+            if (m && m.alive) alive++;
+        }
+
+        let archCount = 0;
+        let rows = 0;
+        for (const a of this.archetypes) {
+            if (!a) continue;
+            archCount++;
+            rows += a.entities.length;
+        }
+
+        const phaseMs: Record<string, number> = Object.create(null);
+        for (const [k, v] of this._phaseMs) phaseMs[k] = v;
+
+        const systemMs: Record<string, number> = Object.create(null);
+        for (const [k, v] of this._systemMs) systemMs[k] = v;
+
+        return {
+            aliveEntities: alive,
+            archetypes: archCount,
+            rows,
+            systems: this.systems.length,
+            resources: this.resources.size,
+            eventChannels: this.eventChannels.size,
+            pendingCommands: this.commands.hasPending(),
+
+            frame: this._frameCounter,
+            dt: this._lastDt,
+            frameMs: this._lastFrameMs,
+            phaseMs,
+            systemMs
+        };
+    }
+
+    private _trimHistoryToCapacity(): void
+    {
+        const cap = this._historyCapacity;
+
+        const trimArray = (arr: number[]) => {
+            if (cap === 0) {
+                arr.length = 0;
+                return;
+            }
+            while (arr.length > cap) arr.shift();
+        };
+
+        trimArray(this._histDt);
+        trimArray(this._histFrameMs);
+        for (const arr of this._histPhaseMs.values()) trimArray(arr);
+        for (const arr of this._histSystemMs.values()) trimArray(arr);
+    }
+
+    private _pushSeriesFrame(series: Map<string, number[]>, current: Map<string, number>): void
+    {
+        const sizeBefore = this._histFrameMs.length; // same as dt length before push
+
+        // Ensure existing keys get a value (0 if missing this frame)
+        for (const [k, arr] of series) {
+            const v = current.get(k) ?? 0;
+            arr.push(v);
+            if (this._historyCapacity === 0) arr.length = 0;
+            else while (arr.length > this._historyCapacity) arr.shift();
+        }
+
+        // New keys discovered this frame: backfill zeros so lengths align
+        for (const [k, v] of current) {
+            if (series.has(k)) continue;
+            const arr = new Array<number>(sizeBefore).fill(0);
+            arr.push(v);
+            series.set(k, arr);
+            if (this._historyCapacity === 0) arr.length = 0;
+            else while (arr.length > this._historyCapacity) arr.shift();
+        }
+    }
+
+    /** @internal Called by Schedule/World.update to start a new profiling frame */
+    public _profBeginFrame(dt: number): number
+    {
+        this._frameCounter++;
+        this._lastDt = dt;
+
+        this._phaseMs.clear();
+        this._systemMs.clear();
+
+        if (!this._profilingEnabled) {
+            this._lastFrameMs = 0;
+            return 0;
+        }
+
+        return performance.now();
+    }
+
+    /** @internal Called by Schedule/World.update to end a new profiling frame */
+    public _profEndFrame(frameStartMs: number): void
+    {
+        if (!this._profilingEnabled) return;
+
+        this._lastFrameMs = performance.now() - frameStartMs;
+
+        // Update history (aligned series)
+        this._histDt.push(this._lastDt);
+        this._histFrameMs.push(this._lastFrameMs);
+        this._trimHistoryToCapacity();
+
+        this._pushSeriesFrame(this._histPhaseMs, this._phaseMs);
+        this._pushSeriesFrame(this._histSystemMs, this._systemMs);
+    }
+
+    /** @internal */
+    public _profAddPhase(phase: string, ms: number): void
+    {
+        if (!this._profilingEnabled) return;
+        this._phaseMs.set(phase, (this._phaseMs.get(phase) ?? 0) + ms);
+    }
+
+    /** @internal */
+    public _profAddSystem(name: string, ms: number): void
+    {
+        if (!this._profilingEnabled) return;
+        this._systemMs.set(name, (this._systemMs.get(name) ?? 0) + ms);
     }
 
     /** Queue structural changes to apply safely after systems run. */
@@ -90,13 +266,26 @@ export class World implements WorldApi
         }
         this._hasUsedWorldUpdate = true;
 
+        const frameStart = this._profBeginFrame(dt);
+
         this._iterateDepth++;
         try {
-            for (const s of this.systems) s(this, dt);
+            for (const s of this.systems) {
+                if (this._profilingEnabled) {
+                    const t0 = performance.now();
+                    s(this, dt);
+                    const name = s.name && s.name.length > 0 ? s.name : "<anonymous>";
+                    this._profAddSystem(name, performance.now() - t0);
+                } else {
+                    s(this, dt);
+                }
+            }
         } finally {
             this._iterateDepth--;
             this.flush();
             this.swapEvents();
+            this._profAddPhase("update", this._profilingEnabled ? (performance.now() - frameStart) : 0);
+            this._profEndFrame(frameStart);
         }
     }
 

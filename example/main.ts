@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { World, Schedule, type WorldApi } from "../src/index";
+import {World, Schedule, type WorldApi, StatsOverlay} from "../src";
 
 // ------------------------------
 // Components
@@ -314,6 +314,12 @@ function main() {
     const world = new World();
     const schedule = new Schedule();
 
+    // enable profiling for visual stats
+    world.setProfilingEnabled(true);
+    world.setProfilingHistorySize(240);
+
+    const overlay = new StatsOverlay({ width: 340, height: 90 });
+
     // Resources
     world.initResource(InputResource, () => new InputResource());
     world.initResource(TextureCacheResource, () => new TextureCacheResource());
@@ -391,6 +397,8 @@ function main() {
         last = now;
 
         schedule.run(world, dt, phases);
+
+        overlay.update(world);
 
         requestAnimationFrame(frame);
     }
