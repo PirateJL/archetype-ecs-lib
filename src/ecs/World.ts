@@ -15,6 +15,12 @@ import type {
     QueryRow4,
     QueryRow5,
     QueryRow6,
+    QueryTable1,
+    QueryTable2,
+    QueryTable3,
+    QueryTable4,
+    QueryTable5,
+    QueryTable6,
     Signature,
     SystemFn,
     TypeId,
@@ -70,7 +76,7 @@ export class World implements WorldApi
      * - Rapid prototyping
      *
      * @example
-     * ```typescript
+     * ```TypeScript
      * // Simple game loop
      * function gameLoop(dt: number) {
      *   world.update(dt);
@@ -401,19 +407,7 @@ export class World implements WorldApi
     public query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryRow6<A, B, C, D, E, F>>;
     public query(...ctors: ComponentCtor<any>[]): Iterable<any>
     {
-        // Preserve caller order for (c1,c2,c3,...) mapping.
-        const requested: TypeId[] = new Array(ctors.length);
-        for (let i = 0; i < ctors.length; i++) requested[i] = typeId(ctors[i]!);
-
-        // Same ids, but sorted + deduped for signatureHasAll().
-        const needSorted: TypeId[] = requested.slice();
-        needSorted.sort((a, b) => a - b);
-        let w = 0;
-        for (let i = 0; i < needSorted.length; i++) {
-            const v = needSorted[i]!;
-            if (i === 0 || v !== needSorted[w - 1]) needSorted[w++] = v;
-        }
-        needSorted.length = w;
+        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
 
         function* gen(world: World): IterableIterator<any>
         {
@@ -441,9 +435,109 @@ export class World implements WorldApi
 
         return gen(this);
     }
+
+    /**
+     * Table query: yields one item per matching archetype (SoA columns + entity array).
+     * This avoids allocating one object per entity row.
+     */
+    public queryTables<A>(c1: ComponentCtor<A>): Iterable<QueryTable1<A>>;
+    public queryTables<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryTable2<A, B>>;
+    public queryTables<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryTable3<A, B, C>>;
+    public queryTables<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryTable4<A, B, C, D>>;
+    public queryTables<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryTable5<A, B, C, D, E>>;
+    public queryTables<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryTable6<A, B, C, D, E, F>>;
+    public queryTables(...ctors: ComponentCtor<any>[]): Iterable<any>
+    {
+        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
+
+        function* gen(world: World): IterableIterator<any>
+        {
+            world._iterateDepth++;
+            try {
+                for (const a of world.archetypes) {
+                    if (!a) continue;
+                    if (!signatureHasAll(a.sig, needSorted)) continue;
+
+                    const out: any = { entities: a.entities };
+                    for (let i = 0; i < requested.length; i++) {
+                        out[`c${i + 1}`] = a.column<any>(requested[i]!);
+                    }
+                    yield out;
+                }
+            } finally {
+                world._iterateDepth--;
+            }
+        }
+
+        return gen(this);
+    }
+
+    /**
+     * Callback query: calls `fn` for each matching entity row (no yield object allocations).
+     */
+    public queryEach<A>(c1: ComponentCtor<A>, fn: (e: Entity, c1: A) => void): void;
+    public queryEach<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, fn: (e: Entity, c1: A, c2: B) => void): void;
+    public queryEach<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, fn: (e: Entity, c1: A, c2: B, c3: C) => void): void;
+    public queryEach<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D) => void): void;
+    public queryEach<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E) => void): void;
+    public queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
+    public queryEach(...args: any[]): void
+    {
+        // tslint:disable-next-line:ban-types
+        const fn = args[args.length - 1] as Function;
+        const ctors = args.slice(0, args.length - 1) as ComponentCtor<any>[];
+
+        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
+
+        this._iterateDepth++;
+        try {
+            for (const a of this.archetypes) {
+                if (!a) continue;
+                if (!signatureHasAll(a.sig, needSorted)) continue;
+
+                const cols = new Array<any[]>(requested.length);
+                for (let i = 0; i < requested.length; i++) cols[i] = a.column<any>(requested[i]!);
+
+                for (let row = 0; row < a.entities.length; row++) {
+                    const e = a.entities[row]!;
+                    switch (cols.length) {
+                        case 1: fn(e, cols[0]![row]); break;
+                        case 2: fn(e, cols[0]![row], cols[1]![row]); break;
+                        case 3: fn(e, cols[0]![row], cols[1]![row], cols[2]![row]); break;
+                        case 4: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row]); break;
+                        case 5: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row], cols[4]![row]); break;
+                        case 6: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row], cols[4]![row], cols[5]![row]); break;
+                        default: fn(e, ...cols.map(c => c[row])); break;
+                    }
+                }
+            }
+        } finally {
+            this._iterateDepth--;
+        }
+    }
     //#endregion
 
     //#region ---------- Internals ----------
+    private static _buildQueryTypeIds(ctors: ComponentCtor<any>[]): { requested: TypeId[]; needSorted: TypeId[] }
+    {
+        // Preserve caller order for (c1,c2,c3,...) mapping.
+        const requested: TypeId[] = new Array(ctors.length);
+        for (let i = 0; i < ctors.length; i++) requested[i] = typeId(ctors[i]!);
+
+        // Same ids, but sorted + deduped for signatureHasAll().
+        const needSorted: TypeId[] = requested.slice();
+        needSorted.sort((a, b) => a - b);
+
+        let w = 0;
+        for (let i = 0; i < needSorted.length; i++) {
+            const v = needSorted[i]!;
+            if (i === 0 || v !== needSorted[w - 1]) needSorted[w++] = v;
+        }
+        needSorted.length = w;
+
+        return { requested, needSorted };
+    }
+
     private _ensureNotIterating(op: string): void
     {
         if (this._iterateDepth > 0) {
