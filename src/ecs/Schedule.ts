@@ -54,7 +54,7 @@ export class Schedule {
             worldInstance._warnAboutLifecycleConflict("Schedule.run");
         }
         worldInstance._hasUsedScheduleRun = true;
-          
+
         const phases = phaseOrder ?? this.phaseOrder;
         if (!phases) throw new Error('Schedule.run requires a phase order (pass it as an argument or call schedule.setOrder([...]))');
 
