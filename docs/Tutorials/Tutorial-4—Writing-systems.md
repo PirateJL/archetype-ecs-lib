@@ -10,7 +10,7 @@ Outcome: you’ll write real gameplay logic as **systems**: query components, mu
 import { World, WorldApi, Schedule, SystemFn } from "archetype-ecs-lib";
 ```
 
-Your lib exports `World` and `Schedule`. 
+The lib exports `World` and `Schedule`. 
 
 ---
 

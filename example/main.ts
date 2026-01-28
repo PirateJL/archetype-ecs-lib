@@ -98,6 +98,7 @@ class ThreeResource {
         this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.style.margin = "0";
+        this.renderer.domElement.style.margin = "0";
         document.body.appendChild(this.renderer.domElement);
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -166,7 +167,7 @@ function enqueueSpawnCube(world: any, pos: THREE.Vector3) {
         three.scene.add(mesh);
         three.entityByObject.set(mesh, e);
 
-        // add components via commands so they apply in the SAME flush (your flush loops until empty)
+        // add components via commands so they apply in the SAME flush (flush loops until empty)
         world.cmd().add(e, Transform, (() => {
             const t = new Transform();
             t.pos.copy(pos);
@@ -185,12 +186,12 @@ function enqueueSpawnCube(world: any, pos: THREE.Vector3) {
 // ------------------------------
 
 // beginFrame: reset per-frame state
-function beginFrameSystem(w: any, _dt: number) {
+function beginFrameSystem(w: WorldApi, _dt: number) {
     w.requireResource(InputResource).beginFrame();
 }
 
 // input: convert raw input resource -> ClickEvent(s)
-function inputSystem(w: any, _dt: number) {
+function inputSystem(w: WorldApi, _dt: number) {
     const input = w.requireResource(InputResource);
     // console.log(input);
     for (const c of input.drainClicks()) {
@@ -199,7 +200,7 @@ function inputSystem(w: any, _dt: number) {
 }
 
 // beforeUpdate: pick objects + emit semantic events
-function pickingSystem(w: any, _dt: number) {
+function pickingSystem(w: WorldApi, _dt: number) {
     const three = w.requireResource(ThreeResource);
 
     w.drainEvents(ClickEvent, (ev: ClickEvent) => {
@@ -212,11 +213,11 @@ function pickingSystem(w: any, _dt: number) {
 
         // Intersect all meshes currently in scene
         const hits = three.raycaster.intersectObjects(three.scene.children, true);
-        const hit = hits.find((h: any) => (h.object as any).isMesh);
+        const meshHit = hits.find((h: any) => (h.object as any).isMesh);
 
-        if (hit) {
+        if (meshHit) {
             // Find owning entity (walk up parents until mapped)
-            let obj: THREE.Object3D | null = hit.object;
+            let obj: THREE.Object3D | null = meshHit.object;
             let ent: any | undefined;
             while (obj && !ent) {
                 ent = three.entityByObject.get(obj);
@@ -226,18 +227,20 @@ function pickingSystem(w: any, _dt: number) {
             if (ent) {
                 w.emit(ToggleColorEvent, new ToggleColorEvent(ent));
                 w.emit(PlaySoundEvent, new PlaySoundEvent("click"));
-                return;
             }
+
+            // Key change: ANY mesh hit blocks spawning
+            return;
         }
 
-        // Clicked empty space -> spawn cube near origin
+        // Clicked, no mesh hit -> spawn cube near origin
         w.emit(SpawnCubeEvent, new SpawnCubeEvent(new THREE.Vector3(rand(-4, 4), 0.5, rand(-4, 4))));
         w.emit(PlaySoundEvent, new PlaySoundEvent("spawn"));
     });
 }
 
 // update: consume semantic events, run gameplay, and sync transforms
-function updateSystem(w: any, dt: number) {
+function updateSystem(w: WorldApi, dt: number) {
     // push the audio to the next phase
     forwardSoundSystem(w, dt);
 
@@ -317,8 +320,16 @@ function main() {
     world.initResource(ThreeResource, () => new ThreeResource(canvas));
 
     // DOM → InputResource
+    const three = world.requireResource(ThreeResource);
     const input = world.requireResource(InputResource);
+
     window.addEventListener("pointerdown", (e) => {
+        // only left click
+        if (e.button !== 0) return;
+
+        // ignore if pointer is not on the canvas
+        if (e.target !== three.renderer.domElement) return;
+
         input.pushClick(e.clientX, e.clientY, e.button);
     });
 
@@ -363,7 +374,6 @@ function main() {
     const phases = ["beginFrame", "input", "beforeUpdate", "update", "afterUpdate", "render", "afterRender", "audio"];
 
     // Resize handling
-    const three = world.requireResource(ThreeResource);
     const resize = () => {
         const w = canvas.clientWidth || window.innerWidth;
         const h = canvas.clientHeight || window.innerHeight;

@@ -13,6 +13,7 @@
     "type": "git",
     "url": "git+https://github.com/PirateJL/archetype-ecs-lib.git"
   },
+  "homepage": "https://piratejl.github.io/archetype-ecs-lib",
   "keywords": [
     "game",
     "gamedev",

@@ -1,0 +1,13 @@
+/* Full viewport canvas */
+.fullpage {
+    /* width: 100vw; */
+    height: fit-content;
+}
+
+/* Fill it */
+.fullpage__frame {
+    width: 100vw;
+    height: 100vh;
+    border: 0;
+    display: block;
+}

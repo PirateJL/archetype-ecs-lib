@@ -78,7 +78,7 @@ That can introduce:
 Archetypes flip that trade-off:
 
 * multi-component iteration is the “happy path” (no join inside the hot loop)
-* but structural changes can be more expensive because adding/removing a component may move an entity between tables (your docs even call out structural ops and the need to defer them). 
+* but structural changes can be more expensive because adding/removing a component may move an entity between tables. 
 
 ### Rule of thumb
 

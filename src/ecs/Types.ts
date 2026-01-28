@@ -55,6 +55,14 @@ export type QueryRow4<A, B, C, D> = { e: Entity; c1: A; c2: B; c3: C; c4: D };
 export type QueryRow5<A, B, C, D, E> = { e: Entity; c1: A; c2: B; c3: C; c4: D; c5: E };
 export type QueryRow6<A, B, C, D, E, F> = { e: Entity; c1: A; c2: B; c3: C; c4: D; c5: E; c6: F };
 
+// ---- Typed query tables (SoA columns + entities) ----
+export type QueryTable1<A> = { entities: Entity[]; c1: Column<A> };
+export type QueryTable2<A, B> = { entities: Entity[]; c1: Column<A>; c2: Column<B> };
+export type QueryTable3<A, B, C> = { entities: Entity[]; c1: Column<A>; c2: Column<B>; c3: Column<C> };
+export type QueryTable4<A, B, C, D> = { entities: Entity[]; c1: Column<A>; c2: Column<B>; c3: Column<C>; c4: Column<D> };
+export type QueryTable5<A, B, C, D, E> = { entities: Entity[]; c1: Column<A>; c2: Column<B>; c3: Column<C>; c4: Column<D>; c5: Column<E> };
+export type QueryTable6<A, B, C, D, E, F> = { entities: Entity[]; c1: Column<A>; c2: Column<B>; c3: Column<C>; c4: Column<D>; c5: Column<E>; c6: Column<F> };
+
 /**
  * Public World API visible from system functions.
  * Structural typing keeps typings fast and avoids generic plumbing across the whole library.
@@ -64,6 +72,8 @@ export interface WorldApi
     // deferred ops
     cmd(): CommandsApi;
 
+    addSystem(fn: SystemFn): this;
+    update(dt: number): void;
     flush(): void;
 
     //#region ----- Resources lifecycle -----
@@ -133,7 +143,7 @@ export interface WorldApi
 
     //#region ----- entity lifecycle -----
     spawn(): Entity;
-    spawnMany(...items: ComponentCtorBundleItem[]): void;
+    spawnMany(...items: ComponentCtorBundleItem[]): Entity;
     despawn(e: Entity): void;
     despawnMany(entities: Entity[]): void;
     isAlive(e: Entity): boolean;
@@ -158,5 +168,23 @@ export interface WorldApi
     query<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryRow5<A, B, C, D, E>>;
     query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryRow6<A, B, C, D, E, F>>;
     query(...ctors: ComponentCtor<any>[]): Iterable<any>;
+
+    // ---- Table queries (SoA columns per archetype, no per-entity allocations) ----
+    queryTables<A>(c1: ComponentCtor<A>): Iterable<QueryTable1<A>>;
+    queryTables<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryTable2<A, B>>;
+    queryTables<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryTable3<A, B, C>>;
+    queryTables<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryTable4<A, B, C, D>>;
+    queryTables<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryTable5<A, B, C, D, E>>;
+    queryTables<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryTable6<A, B, C, D, E, F>>;
+    queryTables(...ctors: ComponentCtor<any>[]): Iterable<any>;
+
+    // ---- Callback queries (no generator yield objects) ----
+    queryEach<A>(c1: ComponentCtor<A>, fn: (e: Entity, c1: A) => void): void;
+    queryEach<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, fn: (e: Entity, c1: A, c2: B) => void): void;
+    queryEach<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, fn: (e: Entity, c1: A, c2: B, c3: C) => void): void;
+    queryEach<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D) => void): void;
+    queryEach<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E) => void): void;
+    queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
+    queryEach(...args: any[]): void;
     //#endregion
 }

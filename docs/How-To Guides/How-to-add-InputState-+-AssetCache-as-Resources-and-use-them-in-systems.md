@@ -219,8 +219,6 @@ Game loop:
 sched.run(world, dt, ["beginFrame", "update", "render"]);
 ```
 
-(Use your existing `Schedule` call shape; the key requirement is **beginFrame before update**.)
-
 ---
 
 ## Common variations

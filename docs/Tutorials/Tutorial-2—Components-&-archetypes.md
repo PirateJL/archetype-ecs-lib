@@ -17,7 +17,7 @@ class Velocity { constructor(public x = 0, public y = 0) {} }
 class Health   { constructor(public hp = 100) {} }
 ```
 
-Your ECS uses component constructors as the “type key”, and archetypes store entities in SoA tables. 
+The ECS uses component constructors as the “type key”, and archetypes store entities in SoA tables. 
 
 ---
 

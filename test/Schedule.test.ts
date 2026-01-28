@@ -1,4 +1,4 @@
-import { ComponentCtor, Schedule, WorldApi } from '../src/index';
+import { ComponentCtor, Schedule, WorldApi } from '../src';
 
 describe("Schedule", () => {
     test("runs systems by phase order and flushes between phases that exist", () => {
@@ -7,6 +7,8 @@ describe("Schedule", () => {
         const calls: string[] = [];
         // Minimal WorldApi stub for Schedule + SystemFn typing
         const world: WorldApi = {
+            addSystem: jest.fn(),
+            update: jest.fn(),
             flush: jest.fn(() => calls.push("flush")),
 
             // ---- Resources (minimal stubs, no real storage) ----
@@ -21,7 +23,6 @@ describe("Schedule", () => {
             initResource: jest.fn(<T>(_key: ComponentCtor<T>, factory: () => T) => factory()),
 
             // ---- Events (minimal stubs, no real storage) ----
-
             emit: jest.fn(),
             events: jest.fn(),
             drainEvents: jest.fn(),
@@ -42,7 +43,7 @@ describe("Schedule", () => {
             }),
 
             spawn: () => ({ id: 0, gen: 0 }),
-            spawnMany: jest.fn(),
+            spawnMany: () => ({ id: 1, gen: 0 }),
             despawn: jest.fn(),
             despawnMany: jest.fn(),
             isAlive: jest.fn(() => true),
@@ -58,6 +59,12 @@ describe("Schedule", () => {
             query: jest.fn(function* () {
                 // empty iterable
             }),
+            queryTables: jest.fn(function* () {
+                // empty iterable
+            }),
+            queryEach: jest.fn(function* () {
+                // empty iterable
+            }),
         };
 
         sched.add("a", (_w: WorldApi, _dt: number) => calls.push("a1"));
@@ -66,9 +73,9 @@ describe("Schedule", () => {
 
         sched.run(world, 0.016, ["a", "b", "c"]); // c has no systems
 
-        expect(calls).toEqual(["a1", "a2", "flush", "b1", "flush"]);
-        expect(world.flush).toHaveBeenCalledTimes(2);
-        expect(world.swapEvents).toHaveBeenCalledTimes(2);
+        expect(calls).toEqual(["a1", "a2", "flush", "b1", "flush", "flush"]);
+        expect(world.flush).toHaveBeenCalledTimes(3);
+        expect(world.swapEvents).toHaveBeenCalledTimes(3);
     });
 
     test("add is chainable", () => {

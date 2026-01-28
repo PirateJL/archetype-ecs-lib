@@ -1,6 +1,6 @@
 # Tutorial 3 — Deferred structural changes
 
-Outcome: you’ll learn the one rule that prevents most ECS bugs: **don’t change entity structure while iterating**. You’ll reproduce the problem safely, then fix it using **Commands** and **flush points** (via `Schedule`). Your library explicitly supports this workflow: defer structural operations with `world.cmd()` and apply them with `world.flush()` / `Schedule` phase boundaries. 
+Outcome: you’ll learn the one rule that prevents most ECS bugs: **don’t change entity structure while iterating**. You’ll reproduce the problem safely, then fix it using **Commands** and **flush points** (via `Schedule`). The library explicitly supports this workflow: defer structural operations with `world.cmd()` and apply them with `world.flush()` / `Schedule` phase boundaries. 
 
 ---
 

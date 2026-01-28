@@ -105,7 +105,7 @@ Returns the resource value if present, otherwise **throws**.
 
 **Throws**
 
-* `Error` if missing (your error message should mention how to insert it)
+* `Error` if missing
 
 **Example**
 
