@@ -155,6 +155,18 @@ describe("Schedule", () => {
         expect(world.swapEvents).toHaveBeenCalledTimes(2);
     });
 
+    test("after() throws if called before any add()", () => {
+        const sched = new Schedule();
+
+        expect(() => sched.after("input")).toThrow('Schedule.after("input") must be called after schedule.add(phase, fn).');
+    });
+
+    test("before() throws if called before any add()", () => {
+        const sched = new Schedule();
+
+        expect(() => sched.before("render")).toThrow('Schedule.before("render") must be called after schedule.add(phase, fn).');
+    });
+
     test("add(...) returns constraint helpers; .after()/.before() add constraints and return schedule", () => {
         const sched = new Schedule();
         const fn = jest.fn();

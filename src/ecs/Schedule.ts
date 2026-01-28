@@ -45,6 +45,11 @@ export class Schedule {
     private readonly phaseEdges = new Map<string, Set<string>>();
 
     /**
+     * Tracks the most recently modified phase (via add()) so `.after()`/`.before()` can be chained.
+     */
+    private _lastPhase: string | undefined = undefined;
+
+    /**
      * Set a default phase order used when calling `run(world, dt)` without passing `phaseOrder`.
      *
      * @param phases Ordered list of phase names to execute.
@@ -82,35 +87,41 @@ export class Schedule {
      * @param phase Phase name.
      * @param fn System function `(world, dt) => void`.
      */
-    add(phase: string, fn: SystemFn):
+    add(phase: string, fn: SystemFn): { after: (otherPhase: string) => Schedule; before: (otherPhase: string) => Schedule; }
     {
-        after: (otherPhase: string) => Schedule;
-        before: (otherPhase: string) => Schedule;
-    } {
         const list = this.phases.get(phase) ?? [];
         list.push(fn);
         this.phases.set(phase, list);
+        this._lastPhase = phase;
+        return this;
+    }
 
-        return {
-            /**
-             * Constrain this phase to run after `otherPhase`.
-             *
-             * @param otherPhase Phase that must run before `phase`.
-             */
-            after: (otherPhase: string): Schedule => {
-                this._addPhaseConstraint(otherPhase, phase);
-                return this;
-            },
-            /**
-             * Constrain this phase to run before `otherPhase`.
-             *
-             * @param otherPhase Phase that must run after `phase`.
-             */
-            before: (otherPhase: string): Schedule => {
-                this._addPhaseConstraint(phase, otherPhase);
-                return this;
-            }
-        };
+    /**
+     * Constrain the last added phase to run after `otherPhase`.
+     *
+     * Must be called after `add(...)`.
+     */
+    after(otherPhase: string): this
+    {
+        if (!this._lastPhase) {
+            throw new Error(`Schedule.after("${otherPhase}") must be called after schedule.add(phase, fn).`);
+        }
+        this._addPhaseConstraint(otherPhase, this._lastPhase);
+        return this;
+    }
+
+    /**
+     * Constrain the last added phase to run before `otherPhase`.
+     *
+     * Must be called after `add(...)`.
+     */
+    before(otherPhase: string): this
+    {
+        if (!this._lastPhase) {
+            throw new Error(`Schedule.before("${otherPhase}") must be called after schedule.add(phase, fn).`);
+        }
+        this._addPhaseConstraint(this._lastPhase, otherPhase);
+        return this;
     }
 
     /**
