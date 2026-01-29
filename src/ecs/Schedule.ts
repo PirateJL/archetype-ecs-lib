@@ -152,8 +152,9 @@ export class Schedule {
         worldInstance._hasUsedScheduleRun = true;
 
         const phases = phaseOrder ?? this.phaseOrder ??  this._computePhaseOrder();
-        if (!phases || phases.length === 0)
+        if (!phases || phases.length === 0) {
             throw new Error('Schedule.run requires a phase order (pass it as an argument or call schedule.setOrder([...]))');
+        }
 
         const frameStart = worldInstance._profBeginFrame(dt);
 

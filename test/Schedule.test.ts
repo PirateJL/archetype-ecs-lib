@@ -71,6 +71,11 @@ describe("Schedule", () => {
             query: jest.fn(function* () { /* empty */ }),
             queryTables: jest.fn(function* () { /* empty */ }),
             queryEach: jest.fn(function* () { /* empty */ }),
+
+            _profBeginFrame: jest.fn(),
+            _profEndFrame: jest.fn(),
+            _profAddPhase: jest.fn(),
+            _profAddSystem: jest.fn()
         };
 
         return world as WorldApi;
@@ -95,7 +100,7 @@ describe("Schedule", () => {
         const order = ["b", "a"];
         sched.setOrder(order);
 
-        // mutate caller array to ensure Schedule cloned it
+        // mutate a caller array to ensure Schedule cloned it
         order.reverse();
 
         sched.add("a", () => calls.push("a"));
