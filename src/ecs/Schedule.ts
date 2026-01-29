@@ -154,7 +154,7 @@ export class Schedule {
         const phases = phaseOrder ?? this.phaseOrder ??  this._computePhaseOrder();
         if (!phases || phases.length === 0)
             throw new Error('Schedule.run requires a phase order (pass it as an argument or call schedule.setOrder([...]))');
-        
+
         const frameStart = worldInstance._profBeginFrame(dt);
 
         for (const phase of phases) {
@@ -190,10 +190,11 @@ export class Schedule {
                 // deliver events emitted in this phase to the next phase
                 world.swapEvents();
             }
-          
-          worldInstance._profAddPhase(phase, performance.now() - phaseStart);
+
+            worldInstance._profAddPhase(phase, performance.now() - phaseStart);
         }
-      worldInstance._profEndFrame(frameStart);
+
+        worldInstance._profEndFrame(frameStart);
     }
 
     /**
