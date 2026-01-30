@@ -27,6 +27,7 @@ export class StatsOverlay
     private readonly root: HTMLDivElement;
     private readonly header: HTMLDivElement;
     private readonly toggleButton: HTMLButtonElement;
+    private readonly debugToggleButton: HTMLButtonElement;
     private readonly content: HTMLDivElement;
     private readonly text: HTMLPreElement;
     private readonly canvas: HTMLCanvasElement;
@@ -35,6 +36,7 @@ export class StatsOverlay
     private opts: Required<Omit<StatsOverlayOptions, "parent">> & { parent: HTMLElement };
     private readonly resizeObserver: ResizeObserver;
     private isExpanded: boolean = true;
+    private debugLoggingEnabled: boolean = false;
 
     // Drag state
     private isDragging: boolean = false;
@@ -112,7 +114,15 @@ export class StatsOverlay
             this.toggle();
         });
 
+        this.debugToggleButton = this.createDebugToggleButton("🔇", "Toggle console debug logging");
+        this.debugToggleButton.style.marginRight = "5px";
+        this.debugToggleButton.addEventListener("click", (e) => {
+            e.stopPropagation();
+            this.toggleDebugLogging();
+        });
+
         this.header.appendChild(title);
+        this.header.appendChild(this.debugToggleButton);
         this.header.appendChild(this.toggleButton);
 
         this.content = document.createElement("div");
@@ -148,11 +158,50 @@ export class StatsOverlay
         this.setupDrag();
     }
 
+    private createDebugToggleButton(text: string, title: string): HTMLButtonElement
+    {
+        const btn = document.createElement("button");
+        btn.textContent = text;
+        btn.title = title;
+        btn.style.background = "rgba(140, 170, 255, 0.15)";
+        btn.style.border = "1px solid rgba(140, 170, 255, 0.3)";
+        btn.style.borderRadius = "4px";
+        btn.style.color = "#d7e3ff";
+        btn.style.width = "24px";
+        btn.style.height = "24px";
+        btn.style.cursor = "pointer";
+        btn.style.fontSize = "12px";
+        btn.style.lineHeight = "1";
+        btn.style.padding = "0";
+        btn.style.display = "flex";
+        btn.style.alignItems = "center";
+        btn.style.justifyContent = "center";
+        btn.style.userSelect = "none";
+
+        btn.addEventListener("mouseenter", () => {
+            btn.style.background = "rgba(140, 170, 255, 0.25)";
+        });
+        btn.addEventListener("mouseleave", () => {
+            btn.style.background = "rgba(140, 170, 255, 0.15)";
+        });
+
+        return btn;
+    }
+
+    private toggleDebugLogging(): void
+    {
+        this.debugLoggingEnabled = !this.debugLoggingEnabled;
+        this.debugToggleButton.textContent = this.debugLoggingEnabled ? "🔊" : "🔇";
+        this.debugToggleButton.title = this.debugLoggingEnabled
+            ? "Console debug logging ON (click to disable)"
+            : "Console debug logging OFF (click to enable)";
+    }
+
     private setupDrag(): void
     {
         const onMouseDown = (e: MouseEvent) => {
             // Ignore if clicking the toggle button
-            if (e.target === this.toggleButton) return;
+            if (e.target === this.toggleButton || e.target === this.debugToggleButton) return;
 
             this.isDragging = true;
 
@@ -243,19 +292,21 @@ export class StatsOverlay
             .join(" ");
 
         this.text.textContent =
-            `frame ${s.frame}\n` +
-            `arch=${s.archetypes}\n` +
-            `rows=${s.rows}\n` +
-            `alive=${s.aliveEntities}\n` +
-            `systems=${s.systems}\n` +
-            `resources=${s.resources}\n` +
-            `eventChannels=${s.eventChannels}\n` +
-            `pendingCmd=${String(s.pendingCommands)}\n` +
+            `Frame ${s.frame}\n` +
+            `Archetypes: ${s.archetypes}\n` +
+            `Rows: ${s.rows}\n` +
+            `Alive entities: ${s.aliveEntities}\n` +
+            `Systems: ${s.systems}\n` +
+            `Resources: ${s.resources}\n` +
+            `Event channels: ${s.eventChannels}\n` +
+            `Pending commands: ${String(s.pendingCommands)}\n` +
             `dt=${(s.dt * 1000).toFixed(2)}ms frame=${s.frameMs.toFixed(2)}ms\n` +
-            `phases: ${topPhases}`;
+            `Phases: ${topPhases}`;
 
-        // tslint:disable-next-line:no-console
-        console.debug(`phases: ${topPhases}`);
+        if (this.debugLoggingEnabled) {
+            // tslint:disable-next-line:no-console
+            console.debug(`Phases: ${topPhases}`);
+        }
 
         this.drawFrameGraph(h);
     }
