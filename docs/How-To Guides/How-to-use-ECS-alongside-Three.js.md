@@ -31,7 +31,7 @@ const e = world.spawnMany(
 * remove meshes for despawned entities (see step 5)
 
 ```ts
-sched.add("render", (w: any) => {
+sched.add(world, "render", (w: any) => {
   for (const { e, c1: pos, c2: rend } of w.query(Position, Renderable)) {
     let obj = meshes.get(e.id);
     if (!obj) {

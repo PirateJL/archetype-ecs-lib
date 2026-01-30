@@ -6,9 +6,9 @@
 const sched = new Schedule();
 
 sched
-  .add("input", (w: any) => { /* ... */ })
-  .add("sim",   (w: any, dt: number) => { /* ... */ })
-  .add("render",(w: any) => { /* ... */ });
+  .add(world, "input", (w: any) => { /* ... */ })
+  .add(world, "sim",   (w: any, dt: number) => { /* ... */ })
+  .add(world, "render",(w: any) => { /* ... */ });
 ```
 
 2. Define phase order:
