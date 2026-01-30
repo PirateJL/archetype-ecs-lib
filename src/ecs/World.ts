@@ -1,9 +1,9 @@
-import { Archetype } from "./Archetype";
-import { type Command, Commands } from "./Commands";
-import { EntityManager } from "./EntityManager";
-import { EventChannel } from "./Events";
-import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from "./Signature";
-import { typeId } from "./TypeRegistry";
+import {Archetype} from "./Archetype";
+import {type Command, Commands} from "./Commands";
+import {EntityManager} from "./EntityManager";
+import {EventChannel} from "./Events";
+import {mergeSignature, signatureHasAll, signatureKey, subtractSignature} from "./Signature";
+import {typeId} from "./TypeRegistry";
 import type {
     ComponentCtor,
     ComponentCtorBundleItem,
@@ -24,10 +24,13 @@ import type {
     Signature,
     SystemFn,
     TypeId,
-    WorldApi
+    WorldApi,
+    WorldStats,
+    WorldStatsHistory
 } from "./Types";
+import { StatsOverlay, type StatsOverlayOptions } from "./stats/StatsOverlay";
 
-export class World implements WorldApi
+export class World extends StatsOverlay implements WorldApi
 {
     private readonly entities = new EntityManager();
 
@@ -42,16 +45,81 @@ export class World implements WorldApi
     private readonly resources = new Map<ComponentCtor<any>, any>();
     private readonly eventChannels = new Map<ComponentCtor<any>, EventChannel<any>>();
 
-    // Runtime warning system: track lifecycle usage to detect conflicts
-    public _hasUsedWorldUpdate = false;
-    public _hasUsedScheduleRun = false;
+    /** @internal Phase -> systems mapping for Schedule */
+    public readonly _scheduleSystems = new Map<string, SystemFn[]>();
 
-    constructor()
+    constructor(options?: {statsOverlayOptions: StatsOverlayOptions})
     {
+        super(options?.statsOverlayOptions);
         // Archetype 0: empty signature
         const archetype0 = new Archetype(0, []);
         this.archetypes[0] = archetype0;
         this.archByKey.set("", archetype0);
+    }
+
+    public statsHistory(): WorldStatsHistory
+    {
+        const phaseMs: Record<string, ReadonlyArray<number>> = Object.create(null);
+        for (const [k, v] of this._histPhaseMs) phaseMs[k] = v;
+
+        const systemMs: Record<string, ReadonlyArray<number>> = Object.create(null);
+        for (const [k, v] of this._histSystemMs) systemMs[k] = v;
+
+        return {
+            capacity: this._historyCapacity,
+            size: this._histFrameMs.length,
+            dt: this._histDt,
+            frameMs: this._histFrameMs,
+            phaseMs,
+            systemMs
+        };
+    }
+
+    /**
+     * Rich runtime statistics (counts + last-frame timings).
+     * Note: `aliveEntities` is computed on demand (O(n) over entity meta).
+     */
+    public stats(): WorldStats
+    {
+        let alive = 0;
+        for (let id = 1; id < this.entities.meta.length; id++) {
+            const m = this.entities.meta[id];
+            if (m && m.alive) alive++;
+        }
+
+        let archCount = 0;
+        let rows = 0;
+        for (const a of this.archetypes) {
+            if (!a) continue;
+            archCount++;
+            rows += a.entities.length;
+        }
+
+        const phaseMs: Record<string, number> = Object.create(null);
+        for (const [k, v] of this._phaseMs) phaseMs[k] = v;
+
+        const systemMs: Record<string, number> = Object.create(null);
+        for (const [k, v] of this._systemMs) systemMs[k] = v;
+
+        let systemCount = this.systems.length;
+        if (this._scheduleSystems.size > 0) {
+            systemCount += this._scheduleSystems.size;
+        }
+
+        return {
+            aliveEntities: alive,
+            archetypes: archCount,
+            rows,
+            systems: systemCount,
+            resources: this.resources.size,
+            eventChannels: this.eventChannels.size,
+            pendingCommands: this.commands.hasPending(),
+            frame: this._frameCounter,
+            dt: this._lastDt,
+            frameMs: this._lastFrameMs,
+            phaseMs,
+            systemMs
+        };
     }
 
     /** Queue structural changes to apply safely after systems run. */
@@ -91,25 +159,39 @@ export class World implements WorldApi
     public update(dt: number): void
     {
         // Runtime conflict detection
-        if (this._hasUsedScheduleRun) {
+        if (this._scheduleSystems.size > 0) {
             this._warnAboutLifecycleConflict("World.update");
         }
-        this._hasUsedWorldUpdate = true;
+
+        const frameStart = this._profBeginFrame(dt);
 
         this._iterateDepth++;
         try {
-            for (const s of this.systems) s(this, dt);
+            for (const s of this.systems) {
+                if (this._profilingEnabled) {
+                    const t0 = performance.now();
+                    s(this, dt);
+                    const name = s.name && s.name.length > 0 ? s.name : "<anonymous>";
+                    this._profAddSystem(name, performance.now() - t0);
+                } else {
+                    s(this, dt);
+                }
+            }
         } finally {
             this._iterateDepth--;
             this.flush();
             this.swapEvents();
+            this._profAddPhase("update", this._profilingEnabled ? (performance.now() - frameStart) : 0);
+            this._profEndFrame(frameStart);
         }
+
+        this.updateOverlay(this.stats(), this.statsHistory());
     }
 
     public flush(): void
     {
         this._ensureNotIterating("flush");
-        // Apply commands until queue is empty. This allows spawn(init) to enqueue add/remove
+        // Apply commands until the queue is empty. This allows spawn(init) to enqueue add/remove
         // operations that will be applied during the same flush.
         while (true) {
             const ops = this.commands.drain();
@@ -650,19 +732,30 @@ export class World implements WorldApi
      */
     public _warnAboutLifecycleConflict(method: "World.update" | "Schedule.run"): void
     {
-        const otherMethod = method === "World.update" ? "Schedule.run" : "World.update";
+        const hint = method === "World.update"
+            ? `You have systems registered via schedule.add() but are calling world.update().`
+            : `You have systems registered via world.addSystem() but are calling schedule.run().`;
+
         throw new Error(
             `⚠️  ECS Lifecycle Conflict Detected!\n` +
-            `You are using both ${method} and ${otherMethod} on the same World instance.\n` +
+            `${hint}\n` +
             `This can cause:\n` +
             `- Double command flushes\n` +
             `- Confusing event visibility\n` +
             `- Unclear lifecycle semantics\n\n` +
             `Recommended fix:\n` +
-            `[- Use World.update() for simple single-phase applications\n](cci:1://file:///home/jdu/Workplace/archetype-ecs-lib/src/ecs/World.ts:59:4-76:5)` +
-            `[- Use Schedule.run() for multi-phase applications with explicit control\n\n](cci:1://file:///home/jdu/Workplace/archetype-ecs-lib/src/ecs/Schedule.ts:21:4-57:5)` +
+            `- Use World.update() for simple single-phase applications (with world.addSystem())\n` +
+            `- Use Schedule.run() for multi-phase applications (with schedule.add())\n\n` +
             `Choose ONE approach and stick with it.`
         );
+    }
+
+    /**
+     * @internal Returns the number of systems registered via addSystem()
+     */
+    public _getSystemCount(): number
+    {
+        return this.systems.length;
     }
     //#endregion
 }

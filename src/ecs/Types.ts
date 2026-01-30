@@ -63,12 +63,65 @@ export type QueryTable4<A, B, C, D> = { entities: Entity[]; c1: Column<A>; c2: C
 export type QueryTable5<A, B, C, D, E> = { entities: Entity[]; c1: Column<A>; c2: Column<B>; c3: Column<C>; c4: Column<D>; c5: Column<E> };
 export type QueryTable6<A, B, C, D, E, F> = { entities: Entity[]; c1: Column<A>; c2: Column<B>; c3: Column<C>; c4: Column<D>; c5: Column<E>; c6: Column<F> };
 
+export type WorldStats = Readonly<{
+    // --- simulation totals ---
+    aliveEntities: number;
+    archetypes: number;
+    rows: number;
+    systems: number;
+    resources: number;
+    eventChannels: number;
+    pendingCommands: boolean;
+
+    // --- profiling (last completed frame) ---
+    frame: number;
+    dt: number;             // dt passed to update/run
+    frameMs: number;        // total run/update time measured
+    phaseMs: Readonly<Record<string, number>>;
+    systemMs: Readonly<Record<string, number>>;
+}>;
+
+export type WorldStatsHistory = Readonly<{
+    /** Max frames kept in history (ring-buffer window). */
+    capacity: number;
+
+    /** How many samples are currently stored (<= capacity). */
+    size: number;
+
+    /** Rolling history for overall timing. */
+    dt: ReadonlyArray<number>;
+    frameMs: ReadonlyArray<number>;
+
+    /**
+     * Rolling history per phase/system.
+     * Arrays align with dt/frameMs indices (same `size`).
+     */
+    phaseMs: Readonly<Record<string, ReadonlyArray<number>>>;
+    systemMs: Readonly<Record<string, ReadonlyArray<number>>>;
+}>;
+
 /**
  * Public World API visible from system functions.
  * Structural typing keeps typings fast and avoids generic plumbing across the whole library.
  */
 export interface WorldApi
 {
+    // ---- Debug / tooling ----
+    stats(): WorldStats;
+    statsHistory(): WorldStatsHistory;
+
+    /** @internal Phase -> systems mapping for Schedule */
+    readonly _scheduleSystems: Map<string, SystemFn[]>;
+
+    /** @internal Returns the number of systems registered via addSystem() */
+    _getSystemCount(): number;
+
+    /** Enables/disables profiling (system/phase timing). */
+    setProfilingEnabled(enabled: boolean): void;
+
+    /** Set how many frames of the profiling history to keep (default: 120). */
+    setProfilingHistorySize(frames: number): void;
+
     // deferred ops
     cmd(): CommandsApi;
 

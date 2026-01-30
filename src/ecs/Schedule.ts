@@ -22,9 +22,9 @@ import { World } from "./World";
  * const schedule = new Schedule();
  *
  * schedule
- *   .add("input", inputSystem)
- *   .add("sim", simSystem).after("input")
- *   .add("render", renderSystem).after("sim");
+ *   .add(world, "input", inputSystem)
+ *   .add(world, "sim", simSystem).after("input")
+ *   .add(world, "render", renderSystem).after("sim");
  *
  * // Either pass an explicit phase list...
  * schedule.run(world, dt, ["input", "sim", "render"]);
@@ -34,7 +34,6 @@ import { World } from "./World";
  * ```
  */
 export class Schedule {
-    private readonly phases = new Map<string, SystemFn[]>();
     private phaseOrder: string[] | undefined = undefined;
     private boundaryMode: "auto" | "manual" = "auto";
 
@@ -75,7 +74,7 @@ export class Schedule {
     }
 
     /**
-     * Add a system function to a phase.
+     * Add a system function to a phase in the given world.
      *
      * The returned object allows you to attach **phase ordering constraints**:
      * - `.after("input")` means this phase must run after `"input"`.
@@ -84,14 +83,17 @@ export class Schedule {
      * Constraints are **phase-level**, not system-level: they affect the relative order of phases, not
      * the order of systems within the same phase.
      *
+     * @param world World instance to add the system to.
      * @param phase Phase name.
      * @param fn System function `(world, dt) => void`.
      */
-    add(phase: string, fn: SystemFn): { after: (otherPhase: string) => Schedule; before: (otherPhase: string) => Schedule; }
+    add(world: WorldApi, phase: string, fn: SystemFn):
+        { after: (otherPhase: string) => Schedule; before: (otherPhase: string) => Schedule; }
     {
-        const list = this.phases.get(phase) ?? [];
+        const phases = world._scheduleSystems;
+        const list = phases.get(phase) ?? [];
         list.push(fn);
-        this.phases.set(phase, list);
+        phases.set(phase, list);
         this._lastPhase = phase;
         return this;
     }
@@ -104,7 +106,7 @@ export class Schedule {
     after(otherPhase: string): this
     {
         if (!this._lastPhase) {
-            throw new Error(`Schedule.after("${otherPhase}") must be called after schedule.add(phase, fn).`);
+            throw new Error(`Schedule.after("${otherPhase}") must be called after schedule.add(world, phase, fn).`);
         }
         this._addPhaseConstraint(otherPhase, this._lastPhase);
         return this;
@@ -118,7 +120,7 @@ export class Schedule {
     before(otherPhase: string): this
     {
         if (!this._lastPhase) {
-            throw new Error(`Schedule.before("${otherPhase}") must be called after schedule.add(phase, fn).`);
+            throw new Error(`Schedule.before("${otherPhase}") must be called after schedule.add(world, phase, fn).`);
         }
         this._addPhaseConstraint(this._lastPhase, otherPhase);
         return this;
@@ -146,21 +148,25 @@ export class Schedule {
     {
         // Runtime conflict detection (cast to access private fields)
         const worldInstance = world as World;
-        if (worldInstance._hasUsedWorldUpdate) {
+        if (worldInstance._getSystemCount() > 0) {
             worldInstance._warnAboutLifecycleConflict("Schedule.run");
         }
-        worldInstance._hasUsedScheduleRun = true;
 
-        const phases = phaseOrder ?? this.phaseOrder ??  this._computePhaseOrder();
-        if (!phases || phases.length === 0)
+        const phases = phaseOrder ?? this.phaseOrder ?? this._computePhaseOrder(world);
+        if (!phases || phases.length === 0) {
             throw new Error('Schedule.run requires a phase order (pass it as an argument or call schedule.setOrder([...]))');
+        }
+
+        const frameStart = worldInstance._profBeginFrame(dt);
 
         for (const phase of phases) {
-            const list = this.phases.get(phase);
+            const phaseStart = performance.now();
+            const list = world._scheduleSystems.get(phase);
 
             // Run systems only if they exist for this phase
             if (list) {
                 for (const fn of list) {
+                    const sysStart = performance.now();
                     try {
                         fn(world, dt);
                     } catch (error: any) {
@@ -170,6 +176,9 @@ export class Schedule {
                         const e = new Error(`[phase=${phase} system=${sysName}] ${msg}`);
                         (e as any).cause = error;
                         throw e;
+                    } finally {
+                        const sysName = fn.name && fn.name.length > 0 ? fn.name : "<anonymous>";
+                        worldInstance._profAddSystem(`${phase}:${sysName}`, performance.now() - sysStart);
                     }
                 }
             }
@@ -183,7 +192,13 @@ export class Schedule {
                 // deliver events emitted in this phase to the next phase
                 world.swapEvents();
             }
+
+            worldInstance._profAddPhase(phase, performance.now() - phaseStart);
         }
+
+        worldInstance._profEndFrame(frameStart);
+
+        worldInstance.updateOverlay(worldInstance.stats(), worldInstance.statsHistory());
     }
 
     /**
@@ -215,15 +230,18 @@ export class Schedule {
      * - phases explicitly registered via `add()` keep insertion order when unconstrained
      * - remaining ties fall back to lexicographic order
      *
+     * @param world World instance to get phases from.
      * @returns A valid phase order that satisfies all constraints.
      * @throws If constraints contain a cycle.
      * @internal
      */
-    private _computePhaseOrder(): string[]
+    private _computePhaseOrder(world: WorldApi): string[]
     {
+        const phases = world._scheduleSystems;
+
         // Collect all known phases (defined or referenced by constraints)
         const all = new Set<string>();
-        for (const k of this.phases.keys()) all.add(k);
+        for (const k of phases.keys()) all.add(k);
         for (const [a, bs] of this.phaseEdges) {
             all.add(a);
             for (const b of bs) all.add(b);
@@ -232,7 +250,7 @@ export class Schedule {
         // Stable tie-breaker: insertion order of phase registration (then lexicographic fallback)
         const stableRank = new Map<string, number>();
         let r = 0;
-        for (const k of this.phases.keys()) stableRank.set(k, r++);
+        for (const k of phases.keys()) stableRank.set(k, r++);
 
         const rank = (p: string): number => stableRank.get(p) ?? Number.MAX_SAFE_INTEGER;
 

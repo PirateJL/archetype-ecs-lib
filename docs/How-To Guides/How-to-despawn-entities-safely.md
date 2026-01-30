@@ -19,7 +19,7 @@ world.addSystem((w: any) => {
 world.flush();
 ```
 
-3. Or rely on end-of-frame flush:
+3. Or rely on an end-of-frame flush:
 
 ```ts
 world.update(dt); // runs systems, then flushes
