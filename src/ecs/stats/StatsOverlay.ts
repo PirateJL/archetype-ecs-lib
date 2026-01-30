@@ -103,8 +103,14 @@ export class StatsOverlay
 
         this.text.textContent =
             `ECS Stats (frame ${s.frame})\n` +
-            `alive=${s.aliveEntities} arch=${s.archetypes} rows=${s.rows}\n` +
-            `dt=${(s.dt * 1000).toFixed(2)}ms frame=${s.frameMs.toFixed(2)}ms pendingCmd=${String(s.pendingCommands)}\n` +
+            `arch=${s.archetypes}\n` +
+            `rows=${s.rows}\n` +
+            `alive=${s.aliveEntities}\n` +
+            `systems=${s.systems}\n` +
+            `resources=${s.resources}\n` +
+            `eventChannels=${s.eventChannels}\n` +
+            `pendingCmd=${String(s.pendingCommands)}\n` +
+            `dt=${(s.dt * 1000).toFixed(2)}ms frame=${s.frameMs.toFixed(2)}ms\n` +
             `phases: ${topPhases}`;
 
         // tslint:disable-next-line:no-console

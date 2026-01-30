@@ -133,7 +133,6 @@ export class World implements WorldApi
             resources: this.resources.size,
             eventChannels: this.eventChannels.size,
             pendingCommands: this.commands.hasPending(),
-
             frame: this._frameCounter,
             dt: this._lastDt,
             frameMs: this._lastFrameMs,
