@@ -9,38 +9,38 @@ It groups system functions under **named phases** (e.g. `"input"`, `"update"`, `
 - flush deferred structural commands (`world.flush()`, only if commands are pending)
 - deliver events to the next phase (`world.swapEvents()`)
 
-This lets you build a deterministic pipeline (input → simulation → rendering → audio, etc.) without running into “structural change during iteration” problems.
+This lets you build a deterministic pipeline (input → simulation → rendering → audio, etc.) without running into "structural change during iteration" problems.
 
 ---
 
 ## Construction
 
-```ts
-const sched = new Schedule();
+```
+ts
+const schedule = new Schedule();
 ```
 
-A `Schedule` is independent from `World`; you pass the `world` at run time.
+A `Schedule` is independent from `World`, you pass the `world` at run time.
 
 ---
 
 ## Adding systems to phases
 
-### `add(phase: string, fn: SystemFn): this`
+### `add(world: WorldApi, phase: string, fn: SystemFn): { after, before }`
 
-Registers `fn` under `phase`.
+Registers `fn` under `phase` for the given `world`.
 
 - You can register multiple systems under the same phase (they run in insertion order).
-- Returns `this` for fluent chaining (retro-compatible).
+- Returns an object with `after()` and `before()` methods for chaining phase constraints.
 
 Example:
-
-```ts
-sched
-    .add("input", inputSystem)
-    .add("update", updateSystem)
-    .add("render", renderSystem);
 ```
-
+ts
+schedule
+    .add(world, "input", inputSystem)
+    .add(world, "update", updateSystem)
+    .add(world, "render", renderSystem);
+```
 ---
 
 ## Phase ordering constraints
@@ -51,14 +51,15 @@ Constraints are **phase-level** (not system-level): they affect the relative ord
 
 Constrain the **most recently added phase** to run after `otherPhase`.
 
-```ts
-sched.add("sim", simSystem).after("input"); // input -> sim
+```
+ts
+schedule.add(world, "sim", simSystem).after("input"); // input -> sim
 ```
 
-You can call it multiple times to add multiple constraints:
-
-```ts
-sched.add("sim", simSystem).after("beginFrame").after("input");
+You can chain multiple constraints:
+```
+ts
+schedule.add(world, "sim", simSystem).after("beginFrame").after("input");
 ```
 
 > `after()` must be called after `add(...)`. Calling it before any `add(...)` throws an error.
@@ -67,11 +68,12 @@ sched.add("sim", simSystem).after("beginFrame").after("input");
 
 Constrain the **most recently added phase** to run before `otherPhase`.
 
-```ts
-sched.add("input", inputSystem).before("sim"); // input -> sim
+```
+ts
+schedule.add(world, "input", inputSystem).before("sim"); // input -> sim
 ```
 
-> `before()` must be called after `add(...)`. Calling it before any `add(...)` throws.
+> `before()` must be called after `add(...)`. Calling it before any `add(...)` throws an error.
 
 ---
 
@@ -87,8 +89,9 @@ sched.add("input", inputSystem).before("sim"); // input -> sim
 
 Set a default phase order used by `run(world, dt)` when no `phaseOrder` is passed.
 
-```ts
-sched.setOrder(["input", "sim", "render"]);
+```
+ts
+schedule.setOrder(["input", "sim", "render"]);
 ```
 
 ---
@@ -104,10 +107,11 @@ Controls what happens after each phase:
     - always `world.swapEvents()`
 - `"manual"`:
     - do nothing automatically; the caller is responsible for `world.flush()` / `world.swapEvents()`
+```
 
-```ts
-sched.setBoundaryMode("auto"); // default
-sched.setBoundaryMode("manual"); // advanced usage
+ts
+schedule.setBoundaryMode("auto"); // default
+schedule.setBoundaryMode("manual"); // advanced usage
 ```
 
 ---
@@ -123,35 +127,58 @@ Runs the schedule for a single tick:
 - Applies phase boundary behavior according to `setBoundaryMode()`.
 
 Example (explicit order):
-
-```ts
-sched.run(world, 1/60, ["input", "sim", "render"]);
+```
+ts
+schedule.run(world, 1/60, ["input", "sim", "render"]);
 ```
 
 Example (computed order from constraints):
+```
+ts
+schedule
+    .add(world, "input", inputSystem)
+    .add(world, "sim", simSystem).after("input")
+    .add(world, "render", renderSystem).after("sim");
 
-```ts
-sched
-    .add("input", inputSystem)
-    .add("sim", simSystem).after("input")
-    .add("render", renderSystem).after("sim");
-sched.run(world, 1 / 60);
+schedule.run(world, 1 / 60);
 ```
 
 ---
 
 ## Errors and lifecycle notes
 
-- If a system throws, `Schedule` rethrows a wrapped error:
+- **System errors**: If a system throws, `Schedule` rethrows a wrapped error with context:
     - `"[phase=<phase> system=<name>] <message>"`
-- If constraints contain a cycle and no explicit order is provided, `run()` throws.
-- If no phase order can be determined (no explicit order, no stored order, and nothing scheduled), `run()` throws:
+- **Cyclic constraints**: If constraints contain a cycle and no explicit order is provided, `run()` throws.
+- **No phase order**: If no phase order can be determined (no explicit order, no stored order, and nothing scheduled), `run()` throws:
     - `Schedule.run requires a phase order (pass it as an argument or call schedule.setOrder([...]))`
-- `Schedule.run()` and `World.update()` are mutually exclusive on the same `World` instance (runtime error if both are used).
+
+### Lifecycle conflict detection
+
+`Schedule.run()` and `World.update()` are **mutually exclusive** on the same `World` instance:
+
+- If you register systems via `world.addSystem()` and then call `schedule.run()`, an error is thrown.
+- If you register systems via `schedule.add()` and then call `world.update()`, an error is thrown.
+
+This prevents confusing behavior from mixing two different system execution models in the same world.
+
+**Choose ONE approach:**
+
+| Approach              | Register systems with            | Run with                          |
+|-----------------------|----------------------------------|-----------------------------------|
+| Simple (single-phase) | `world.addSystem(fn)`            | `world.update(dt)`                |
+| Multi-phase           | `schedule.add(world, phase, fn)` | `schedule.run(world, dt, phases)` |
 
 ---
 
 ## Relationship to `World.update(dt)`
 
-- `world.update(dt)` runs the world’s own registered systems and flushes at the end.
-- `Schedule` is for explicit **phase ordering** and **phase boundaries** (flush / event delivery between groups of systems).
+| Feature             | `World.update(dt)`             | `Schedule.run(world, dt, phases)`          |
+|---------------------|--------------------------------|--------------------------------------------|
+| System registration | `world.addSystem(fn)`          | `schedule.add(world, phase, fn)`           |
+| Phase support       | Single implicit phase          | Multiple named phases                      |
+| Phase ordering      | N/A                            | Via `after()`/`before()` or explicit order |
+| Command flush       | Once at end                    | After each phase (if pending)              |
+| Event swap          | Once at end                    | After each phase                           |
+| Best for            | Simple game loops, prototyping | Complex pipelines, deterministic ordering  |
+
