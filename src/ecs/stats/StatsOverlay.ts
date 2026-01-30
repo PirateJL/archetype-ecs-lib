@@ -25,11 +25,16 @@ export type StatsOverlayOptions = Readonly<{
 export class StatsOverlay
 {
     private readonly root: HTMLDivElement;
+    private readonly header: HTMLDivElement;
+    private readonly toggleButton: HTMLButtonElement;
+    private readonly content: HTMLDivElement;
     private readonly text: HTMLPreElement;
     private readonly canvas: HTMLCanvasElement;
     private readonly ctx: CanvasRenderingContext2D;
 
     private opts: Required<Omit<StatsOverlayOptions, "parent">> & { parent: HTMLElement };
+    private readonly resizeObserver: ResizeObserver;
+    private isExpanded: boolean = true;
 
     constructor(options: StatsOverlayOptions = {})
     {
@@ -51,15 +56,62 @@ export class StatsOverlay
         this.root.style.left = `${this.opts.left}px`;
         this.root.style.top = `${this.opts.top}px`;
         this.root.style.zIndex = "9999";
-        this.root.style.pointerEvents = "none";
         this.root.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
         this.root.style.fontSize = "12px";
         this.root.style.color = "#d7e3ff";
         this.root.style.background = "rgba(10, 14, 24, 0.75)";
         this.root.style.border = "1px solid rgba(140, 170, 255, 0.25)";
         this.root.style.borderRadius = "8px";
-        this.root.style.padding = "8px";
         this.root.style.backdropFilter = "blur(2px)";
+        this.root.style.maxWidth = "calc(100vw - 16px)";
+
+        this.header = document.createElement("div");
+        this.header.style.display = "flex";
+        this.header.style.alignItems = "center";
+        this.header.style.padding = "8px";
+        this.header.style.cursor = "pointer";
+        this.header.style.pointerEvents = "auto";
+
+        const title = document.createElement("span");
+        title.textContent = "ECS Stats";
+        title.style.fontWeight = "600";
+        title.style.userSelect = "none";
+        title.style.marginRight = "10px";
+
+        this.toggleButton = document.createElement("button");
+        this.toggleButton.textContent = "−";
+        this.toggleButton.style.background = "rgba(140, 170, 255, 0.15)";
+        this.toggleButton.style.border = "1px solid rgba(140, 170, 255, 0.3)";
+        this.toggleButton.style.borderRadius = "4px";
+        this.toggleButton.style.color = "#d7e3ff";
+        this.toggleButton.style.width = "24px";
+        this.toggleButton.style.height = "24px";
+        this.toggleButton.style.cursor = "pointer";
+        this.toggleButton.style.fontSize = "16px";
+        this.toggleButton.style.lineHeight = "1";
+        this.toggleButton.style.padding = "0";
+        this.toggleButton.style.display = "flex";
+        this.toggleButton.style.alignItems = "center";
+        this.toggleButton.style.justifyContent = "center";
+        this.toggleButton.style.userSelect = "none";
+
+        this.toggleButton.addEventListener("mouseenter", () => {
+            this.toggleButton.style.background = "rgba(140, 170, 255, 0.25)";
+        });
+        this.toggleButton.addEventListener("mouseleave", () => {
+            this.toggleButton.style.background = "rgba(140, 170, 255, 0.15)";
+        });
+        this.toggleButton.addEventListener("click", (e) => {
+            e.stopPropagation();
+            this.toggle();
+        });
+
+        this.header.appendChild(title);
+        this.header.appendChild(this.toggleButton);
+
+        this.content = document.createElement("div");
+        this.content.style.padding = "0 8px 8px 8px";
+        this.content.style.pointerEvents = "none";
 
         this.text = document.createElement("pre");
         this.text.style.margin = "0 0 6px 0";
@@ -67,23 +119,52 @@ export class StatsOverlay
         this.text.style.lineHeight = "1.2";
 
         this.canvas = document.createElement("canvas");
-        this.canvas.width = this.opts.width;
-        this.canvas.height = this.opts.height;
         this.canvas.style.display = "block";
         this.canvas.style.borderRadius = "6px";
         this.canvas.style.background = "rgba(255,255,255,0.04)";
+        this.canvas.style.width = "100%";
+        this.canvas.style.height = "auto";
 
         const ctx = this.canvas.getContext("2d");
         if (!ctx) throw new Error("StatsOverlay: canvas 2D context not available");
         this.ctx = ctx;
 
-        this.root.appendChild(this.text);
-        this.root.appendChild(this.canvas);
+        this.content.appendChild(this.text);
+        this.content.appendChild(this.canvas);
+        this.root.appendChild(this.header);
+        this.root.appendChild(this.content);
         this.opts.parent.appendChild(this.root);
+
+        this.resizeCanvas();
+        this.resizeObserver = new ResizeObserver(() => this.resizeCanvas());
+        this.resizeObserver.observe(this.root);
+    }
+
+    private resizeCanvas(): void
+    {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = this.canvas.getBoundingClientRect();
+        const width = Math.min(this.opts.width, rect.width || this.opts.width);
+        const height = this.opts.height;
+
+        this.canvas.width = width * dpr;
+        this.canvas.height = height * dpr;
+        this.canvas.style.width = `${width}px`;
+        this.canvas.style.height = `${height}px`;
+
+        this.ctx.scale(dpr, dpr);
+    }
+
+    private toggle(): void
+    {
+        this.isExpanded = !this.isExpanded;
+        this.content.style.display = this.isExpanded ? "block" : "none";
+        this.toggleButton.textContent = this.isExpanded ? "−" : "+";
     }
 
     destroy(): void
     {
+        this.resizeObserver.disconnect();
         this.root.remove();
     }
 
@@ -102,7 +183,7 @@ export class StatsOverlay
             .join(" ");
 
         this.text.textContent =
-            `ECS Stats (frame ${s.frame})\n` +
+            `frame ${s.frame}\n` +
             `arch=${s.archetypes}\n` +
             `rows=${s.rows}\n` +
             `alive=${s.aliveEntities}\n` +
@@ -122,8 +203,9 @@ export class StatsOverlay
     private drawFrameGraph(h: WorldStatsHistory): void
     {
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const hh = this.canvas.height;
+        const dpr = window.devicePixelRatio || 1;
+        const w = this.canvas.width / dpr;
+        const hh = this.canvas.height / dpr;
 
         ctx.clearRect(0, 0, w, hh);
 
