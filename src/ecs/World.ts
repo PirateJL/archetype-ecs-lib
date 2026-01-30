@@ -1,9 +1,9 @@
-import { Archetype } from "./Archetype";
-import { type Command, Commands } from "./Commands";
-import { EntityManager } from "./EntityManager";
-import { EventChannel } from "./Events";
-import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from "./Signature";
-import { typeId } from "./TypeRegistry";
+import {Archetype} from "./Archetype";
+import {type Command, Commands} from "./Commands";
+import {EntityManager} from "./EntityManager";
+import {EventChannel} from "./Events";
+import {mergeSignature, signatureHasAll, signatureKey, subtractSignature} from "./Signature";
+import {typeId} from "./TypeRegistry";
 import type {
     ComponentCtor,
     ComponentCtorBundleItem,
@@ -24,7 +24,9 @@ import type {
     Signature,
     SystemFn,
     TypeId,
-    WorldApi, WorldStats, WorldStatsHistory
+    WorldApi,
+    WorldStats,
+    WorldStatsHistory
 } from "./Types";
 
 export class World implements WorldApi
@@ -75,8 +77,7 @@ export class World implements WorldApi
 
     public setProfilingHistorySize(frames: number): void
     {
-        const n = Math.max(0, Math.floor(frames));
-        this._historyCapacity = n;
+        this._historyCapacity = Math.max(0, Math.floor(frames));
         this._trimHistoryToCapacity();
     }
 
