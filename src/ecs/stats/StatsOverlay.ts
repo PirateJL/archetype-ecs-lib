@@ -12,7 +12,7 @@ export type StatsOverlayOptions = Readonly<{
     width?: number;
     height?: number;
 
-    /** Target frame time line (ms). Defaults to 16.67 (60fps). */
+    /** Target frame timeline (ms). Defaults to 16.67 (60fps). */
     targetFrameMs?: number;
 
     /** Threshold where bars become "slow" (ms). Defaults to 20. */
@@ -35,6 +35,11 @@ export class StatsOverlay
     private opts: Required<Omit<StatsOverlayOptions, "parent">> & { parent: HTMLElement };
     private readonly resizeObserver: ResizeObserver;
     private isExpanded: boolean = true;
+
+    // Drag state
+    private isDragging: boolean = false;
+    private dragOffsetX: number = 0;
+    private dragOffsetY: number = 0;
 
     constructor(options: StatsOverlayOptions = {})
     {
@@ -71,6 +76,7 @@ export class StatsOverlay
         this.header.style.padding = "8px";
         this.header.style.cursor = "pointer";
         this.header.style.pointerEvents = "auto";
+        this.header.style.userSelect = "none";
 
         const title = document.createElement("span");
         title.textContent = "ECS Stats";
@@ -138,6 +144,59 @@ export class StatsOverlay
         this.resizeCanvas();
         this.resizeObserver = new ResizeObserver(() => this.resizeCanvas());
         this.resizeObserver.observe(this.root);
+
+        this.setupDrag();
+    }
+
+    private setupDrag(): void
+    {
+        const onMouseDown = (e: MouseEvent) => {
+            // Ignore if clicking the toggle button
+            if (e.target === this.toggleButton) return;
+
+            this.isDragging = true;
+
+            const rect = this.root.getBoundingClientRect();
+            this.dragOffsetX = e.clientX - rect.left;
+            this.dragOffsetY = e.clientY - rect.top;
+
+            this.header.style.cursor = "grabbing";
+            document.body.style.userSelect = "none";
+        };
+
+        const onMouseMove = (e: MouseEvent) => {
+            if (!this.isDragging) return;
+
+            const newLeft = e.clientX - this.dragOffsetX;
+            const newTop = e.clientY - this.dragOffsetY;
+
+            // Clamp to viewport bounds
+            const rect = this.root.getBoundingClientRect();
+            const maxLeft = window.innerWidth - rect.width;
+            const maxTop = window.innerHeight - rect.height;
+
+            this.root.style.left = `${Math.max(0, Math.min(newLeft, maxLeft))}px`;
+            this.root.style.top = `${Math.max(0, Math.min(newTop, maxTop))}px`;
+        };
+
+        const onMouseUp = () => {
+            if (!this.isDragging) return;
+
+            this.isDragging = false;
+            this.header.style.cursor = "grab";
+            document.body.style.userSelect = "";
+        };
+
+        this.header.addEventListener("mousedown", onMouseDown);
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+
+        // Store references for cleanup
+        (this as any)._dragCleanup = () => {
+            this.header.removeEventListener("mousedown", onMouseDown);
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", onMouseUp);
+        };
     }
 
     private resizeCanvas(): void
@@ -164,6 +223,7 @@ export class StatsOverlay
 
     destroy(): void
     {
+        (this as any)._dragCleanup?.();
         this.resizeObserver.disconnect();
         this.root.remove();
     }
