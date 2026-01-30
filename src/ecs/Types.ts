@@ -110,10 +110,13 @@ export interface WorldApi
     stats(): WorldStats;
     statsHistory(): WorldStatsHistory;
 
+    /** @internal Phase -> systems mapping for Schedule */
+    readonly _scheduleSystems: Map<string, SystemFn[]>;
+
     /** Enables/disables profiling (system/phase timing). */
     setProfilingEnabled(enabled: boolean): void;
 
-    /** Set how many frames of profiling history to keep (default: 120). */
+    /** Set how many frames of the profiling history to keep (default: 120). */
     setProfilingHistorySize(frames: number): void;
 
     // deferred ops

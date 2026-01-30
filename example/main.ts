@@ -365,17 +365,17 @@ function main() {
     }
 
     // Schedule phases
-    schedule.add("beginFrame", beginFrameSystem);
-    schedule.add("input", inputSystem);
-    schedule.add("beforeUpdate", pickingSystem);
-    schedule.add("update", updateSystem);
+    schedule.add(world, "beginFrame", beginFrameSystem);
+    schedule.add(world, "input", inputSystem);
+    schedule.add(world, "beforeUpdate", pickingSystem);
+    schedule.add(world, "update", updateSystem);
 
     // Forward sound events across boundaries so they reach audio:
     // update -> afterUpdate -> render -> afterRender -> audio
-    schedule.add("afterUpdate", forwardSoundSystem);
-    schedule.add("render", renderSystem);
-    schedule.add("afterRender", forwardSoundSystem);
-    schedule.add("audio", audioSystem);
+    schedule.add(world, "afterUpdate", forwardSoundSystem);
+    schedule.add(world, "render", renderSystem);
+    schedule.add(world, "afterRender", forwardSoundSystem);
+    schedule.add(world, "audio", audioSystem);
 
     const phases = ["beginFrame", "input", "beforeUpdate", "update", "afterUpdate", "render", "afterRender", "audio"];
 

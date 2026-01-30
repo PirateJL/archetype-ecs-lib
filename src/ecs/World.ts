@@ -42,6 +42,9 @@ export class World implements WorldApi
     private readonly resources = new Map<ComponentCtor<any>, any>();
     private readonly eventChannels = new Map<ComponentCtor<any>, EventChannel<any>>();
 
+    /** @internal Phase -> systems mapping for Schedule */
+    public readonly _scheduleSystems = new Map<string, SystemFn[]>();
+
     // Runtime warning system: track lifecycle usage to detect conflicts
     public _hasUsedWorldUpdate = false;
     public _hasUsedScheduleRun = false;
@@ -125,11 +128,16 @@ export class World implements WorldApi
         const systemMs: Record<string, number> = Object.create(null);
         for (const [k, v] of this._systemMs) systemMs[k] = v;
 
+        let systemCount = this.systems.length;
+        if (this._scheduleSystems.size > 0) {
+            systemCount += this._scheduleSystems.size;
+        }
+
         return {
             aliveEntities: alive,
             archetypes: archCount,
             rows,
-            systems: this.systems.length,
+            systems: systemCount,
             resources: this.resources.size,
             eventChannels: this.eventChannels.size,
             pendingCommands: this.commands.hasPending(),
