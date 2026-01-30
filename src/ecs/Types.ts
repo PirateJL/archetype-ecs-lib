@@ -113,6 +113,9 @@ export interface WorldApi
     /** @internal Phase -> systems mapping for Schedule */
     readonly _scheduleSystems: Map<string, SystemFn[]>;
 
+    /** @internal Returns the number of systems registered via addSystem() */
+    _getSystemCount(): number;
+
     /** Enables/disables profiling (system/phase timing). */
     setProfilingEnabled(enabled: boolean): void;
 

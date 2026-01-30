@@ -4,18 +4,17 @@ describe("Schedule", () => {
 
     function makeWorldStub(opts?: {
         hasPending?: boolean;
-        usedWorldUpdate?: boolean;
+        systemCount?: number;
         throwLifecycleConflict?: boolean;
     }): WorldApi {
         const hasPending = opts?.hasPending ?? true;
-        const usedWorldUpdate = opts?.usedWorldUpdate ?? false;
+        const systemCount = opts?.systemCount ?? 0;
         const throwLifecycleConflict = opts?.throwLifecycleConflict ?? false;
 
         const world: any = {
             // Schedule.run casts WorldApi -> World to read these
-            _hasUsedWorldUpdate: usedWorldUpdate,
-            _hasUsedScheduleRun: false,
             _scheduleSystems: new Map<string, any[]>(),
+            _getSystemCount: jest.fn(() => systemCount),
             _warnAboutLifecycleConflict: jest.fn(() => {
                 if (throwLifecycleConflict) throw new Error("Lifecycle conflict");
             }),
@@ -110,7 +109,6 @@ describe("Schedule", () => {
         sched.run(world, 0.016);
 
         expect(calls).toEqual(["b", "swap", "a", "swap"]);
-        expect((world as any)._hasUsedScheduleRun).toBe(true);
     });
 
     test("setBoundaryMode('manual') disables flush/swap between phases", () => {
@@ -324,9 +322,9 @@ describe("Schedule", () => {
         expect(world.swapEvents).not.toHaveBeenCalled();
     });
 
-    test("lifecycle conflict: if world._hasUsedWorldUpdate is true, Schedule.run calls _warnAboutLifecycleConflict", () => {
+    test("lifecycle conflict: Schedule.run calls _warnAboutLifecycleConflict when systemCount > 0", () => {
         const sched = new Schedule();
-        const world = makeWorldStub({ usedWorldUpdate: true });
+        const world = makeWorldStub({ systemCount: 1 });
 
         sched.add(world, "sim", () => { /* noop */ });
 
@@ -335,13 +333,12 @@ describe("Schedule", () => {
         expect((world as any)._warnAboutLifecycleConflict).toHaveBeenCalledWith("Schedule.run");
     });
 
-    test("lifecycle conflict: if _warnAboutLifecycleConflict throws, Schedule.run propagates it and does not set _hasUsedScheduleRun", () => {
+    test("lifecycle conflict: if _warnAboutLifecycleConflict throws, Schedule.run propagates it", () => {
         const sched = new Schedule();
-        const world = makeWorldStub({ usedWorldUpdate: true, throwLifecycleConflict: true });
+        const world = makeWorldStub({ systemCount: 1, throwLifecycleConflict: true });
 
         sched.add(world, "sim", () => { /* noop */ });
 
         expect(() => sched.run(world, 0.016, ["sim"])).toThrow("Lifecycle conflict");
-        expect((world as any)._hasUsedScheduleRun).toBe(false);
     });
 });

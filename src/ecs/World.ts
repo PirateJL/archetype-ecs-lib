@@ -45,10 +45,6 @@ export class World implements WorldApi
     /** @internal Phase -> systems mapping for Schedule */
     public readonly _scheduleSystems = new Map<string, SystemFn[]>();
 
-    // Runtime warning system: track lifecycle usage to detect conflicts
-    public _hasUsedWorldUpdate = false;
-    public _hasUsedScheduleRun = false;
-
     // ---- Profiling / stats (last completed frame) ----
     private _profilingEnabled = true;
     private _frameCounter = 0;
@@ -274,10 +270,9 @@ export class World implements WorldApi
     public update(dt: number): void
     {
         // Runtime conflict detection
-        if (this._hasUsedScheduleRun) {
+        if (this._scheduleSystems.size > 0) {
             this._warnAboutLifecycleConflict("World.update");
         }
-        this._hasUsedWorldUpdate = true;
 
         const frameStart = this._profBeginFrame(dt);
 
@@ -846,19 +841,30 @@ export class World implements WorldApi
      */
     public _warnAboutLifecycleConflict(method: "World.update" | "Schedule.run"): void
     {
-        const otherMethod = method === "World.update" ? "Schedule.run" : "World.update";
+        const hint = method === "World.update"
+            ? `You have systems registered via schedule.add() but are calling world.update().`
+            : `You have systems registered via world.addSystem() but are calling schedule.run().`;
+
         throw new Error(
             `⚠️  ECS Lifecycle Conflict Detected!\n` +
-            `You are using both ${method} and ${otherMethod} on the same World instance.\n` +
+            `${hint}\n` +
             `This can cause:\n` +
             `- Double command flushes\n` +
             `- Confusing event visibility\n` +
             `- Unclear lifecycle semantics\n\n` +
             `Recommended fix:\n` +
-            `[- Use World.update() for simple single-phase applications\n](cci:1://file:///home/jdu/Workplace/archetype-ecs-lib/src/ecs/World.ts:59:4-76:5)` +
-            `[- Use Schedule.run() for multi-phase applications with explicit control\n\n](cci:1://file:///home/jdu/Workplace/archetype-ecs-lib/src/ecs/Schedule.ts:21:4-57:5)` +
+            `- Use World.update() for simple single-phase applications (with world.addSystem())\n` +
+            `- Use Schedule.run() for multi-phase applications (with schedule.add())\n\n` +
             `Choose ONE approach and stick with it.`
         );
+    }
+
+    /**
+     * @internal Returns the number of systems registered via addSystem()
+     */
+    public _getSystemCount(): number
+    {
+        return this.systems.length;
     }
     //#endregion
 }

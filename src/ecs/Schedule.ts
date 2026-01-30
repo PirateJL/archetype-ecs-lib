@@ -148,10 +148,9 @@ export class Schedule {
     {
         // Runtime conflict detection (cast to access private fields)
         const worldInstance = world as World;
-        if (worldInstance._hasUsedWorldUpdate) {
+        if (worldInstance._getSystemCount() > 0) {
             worldInstance._warnAboutLifecycleConflict("Schedule.run");
         }
-        worldInstance._hasUsedScheduleRun = true;
 
         const phases = phaseOrder ?? this.phaseOrder ?? this._computePhaseOrder(world);
         if (!phases || phases.length === 0) {

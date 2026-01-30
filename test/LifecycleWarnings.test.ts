@@ -1,14 +1,14 @@
 import { World, Schedule } from '../src';
 
 describe("Lifecycle Runtime Warnings", () => {
-    test("throws error when World.update() is used after Schedule.run()", () => {
+    test("throws error when World.update() is called with systems registered via schedule.add()", () => {
         const world = new World();
         const schedule = new Schedule();
 
-        // Use Schedule first
-        schedule.run(world, 0.016, ['update']);
+        // Register a system via Schedule (populates _scheduleSystems)
+        schedule.add(world, "update", () => { /* noop */ });
 
-        // Then use World.update - should throw error
+        // Then use World.update - should throw because _scheduleSystems.size > 0
         expect(() => world.update(0.016)).toThrow(
             expect.objectContaining({
                 message: expect.stringContaining("ECS Lifecycle Conflict Detected!")
@@ -16,14 +16,14 @@ describe("Lifecycle Runtime Warnings", () => {
         );
     });
 
-    test("throws error when Schedule.run() is used after World.update()", () => {
+    test("throws error when Schedule.run() is called with systems registered via world.addSystem()", () => {
         const world = new World();
         const schedule = new Schedule();
 
-        // Use World.update first
-        world.update(0.016);
+        // Register a system via World.addSystem (populates systems array)
+        world.addSystem(() => { /* noop */ });
 
-        // Then use Schedule - should throw error
+        // Then use Schedule.run - should throw because _getSystemCount() > 0
         expect(() => schedule.run(world, 0.016, ['update'])).toThrow(
             expect.objectContaining({
                 message: expect.stringContaining("ECS Lifecycle Conflict Detected!")
@@ -31,12 +31,12 @@ describe("Lifecycle Runtime Warnings", () => {
         );
     });
 
-    test("throws error every time when mixing lifecycle methods", () => {
+    test("throws error every time when Schedule.run() called with addSystem() systems", () => {
         const world = new World();
         const schedule = new Schedule();
 
-        // Use World.update first
-        world.update(0.016);
+        // Register a system via World.addSystem
+        world.addSystem(() => { /* noop */ });
 
         // Every subsequent Schedule.run should throw
         expect(() => schedule.run(world, 0.016, ['update'])).toThrow();
@@ -63,14 +63,15 @@ describe("Lifecycle Runtime Warnings", () => {
         }).not.toThrow();
     });
 
-    test("error message contains both method names", () => {
+    test("error message mentions both lifecycle approaches in recommended fix", () => {
         const world = new World();
         const schedule = new Schedule();
 
-        world.update(0.016);
+        // Register a system via World.addSystem to trigger conflict
+        world.addSystem(() => { /* noop */ });
 
         expect(() => schedule.run(world, 0.016, ['update'])).toThrow(
-            /You are using both Schedule.run and World.update on the same World instance./i
+            /World\.update\(\)[\s\S]*Schedule\.run\(\)/
         );
     });
 });
