@@ -1,4 +1,4 @@
-import type { WorldApi, WorldStats, WorldStatsHistory } from "../Types";
+import type { WorldStats, WorldStatsHistory } from "../Types";
 
 export type StatsOverlayOptions = Readonly<{
     /** Parent element to attach the overlay to. Defaults to document.body */
@@ -24,19 +24,35 @@ export type StatsOverlayOptions = Readonly<{
 
 export class StatsOverlay
 {
-    private readonly root: HTMLDivElement;
-    private readonly header: HTMLDivElement;
-    private readonly toggleButton: HTMLButtonElement;
-    private readonly debugToggleButton: HTMLButtonElement;
-    private readonly content: HTMLDivElement;
-    private readonly text: HTMLPreElement;
-    private readonly canvas: HTMLCanvasElement;
-    private readonly ctx: CanvasRenderingContext2D;
+    private root: HTMLDivElement | null = null;
+    private header: HTMLDivElement | null = null;
+    private toggleButton: HTMLButtonElement | null = null;
+    private debugToggleButton: HTMLButtonElement | null = null;
+    private content: HTMLDivElement | null = null;
+    private text: HTMLPreElement | null = null;
+    private canvas: HTMLCanvasElement | null = null;
+    private ctx: CanvasRenderingContext2D | null = null;
 
-    private opts: Required<Omit<StatsOverlayOptions, "parent">> & { parent: HTMLElement };
-    private readonly resizeObserver: ResizeObserver;
+    private opts: Required<Omit<StatsOverlayOptions, "parent">> & { parent: HTMLElement | null };
+    private resizeObserver: ResizeObserver | null = null;
     private isExpanded: boolean = true;
     private debugLoggingEnabled: boolean = false;
+    private isInitialized: boolean = false;
+
+    // ---- Profiling / stats (last completed frame) ----
+    protected _profilingEnabled = true;
+    protected _frameCounter = 0;
+    protected _lastDt = 0;
+    protected _lastFrameMs = 0;
+    protected readonly _phaseMs = new Map<string, number>();
+    protected readonly _systemMs = new Map<string, number>();
+
+    // ---- Profiling history (rolling window) ----
+    protected _historyCapacity = 120;
+    protected readonly _histDt: number[] = [];
+    protected readonly _histFrameMs: number[] = [];
+    protected readonly _histPhaseMs = new Map<string, number[]>();
+    protected readonly _histSystemMs = new Map<string, number[]>();
 
     // Drag state
     private isDragging: boolean = false;
@@ -45,10 +61,8 @@ export class StatsOverlay
 
     constructor(options: StatsOverlayOptions = {})
     {
-        const parent = options.parent ?? document.body;
-
         this.opts = {
-            parent,
+            parent: null,
             left: options.left ?? 8,
             top: options.top ?? 8,
             width: options.width ?? 320,
@@ -57,6 +71,18 @@ export class StatsOverlay
             slowFrameMs: options.slowFrameMs ?? 20,
             maxSamples: options.maxSamples ?? 240
         };
+
+        // Only initialize DOM if we're in a browser environment
+        if (typeof document !== "undefined") {
+            this.opts.parent = options.parent ?? document.body;
+            this.initializeDom();
+        }
+    }
+
+    private initializeDom(): void
+    {
+        if (this.isInitialized || !this.opts.parent) return;
+        this.isInitialized = true;
 
         this.root = document.createElement("div");
         this.root.style.position = "fixed";
@@ -104,10 +130,10 @@ export class StatsOverlay
         this.toggleButton.style.userSelect = "none";
 
         this.toggleButton.addEventListener("mouseenter", () => {
-            this.toggleButton.style.background = "rgba(140, 170, 255, 0.25)";
+            this.toggleButton!.style.background = "rgba(140, 170, 255, 0.25)";
         });
         this.toggleButton.addEventListener("mouseleave", () => {
-            this.toggleButton.style.background = "rgba(140, 170, 255, 0.15)";
+            this.toggleButton!.style.background = "rgba(140, 170, 255, 0.15)";
         });
         this.toggleButton.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -158,6 +184,105 @@ export class StatsOverlay
         this.setupDrag();
     }
 
+    public setProfilingEnabled(enabled: boolean): void
+    {
+        this._profilingEnabled = enabled;
+    }
+
+    public setProfilingHistorySize(frames: number): void
+    {
+        this._historyCapacity = Math.max(0, Math.floor(frames));
+        this._trimHistoryToCapacity();
+    }
+
+    protected _trimHistoryToCapacity(): void
+    {
+        const cap = this._historyCapacity;
+
+        const trimArray = (arr: number[]) => {
+            if (cap === 0) {
+                arr.length = 0;
+                return;
+            }
+            while (arr.length > cap) arr.shift();
+        };
+
+        trimArray(this._histDt);
+        trimArray(this._histFrameMs);
+        for (const arr of this._histPhaseMs.values()) trimArray(arr);
+        for (const arr of this._histSystemMs.values()) trimArray(arr);
+    }
+
+    protected _pushSeriesFrame(series: Map<string, number[]>, current: Map<string, number>): void
+    {
+        const sizeBefore = this._histFrameMs.length; // same as dt length before push
+
+        // Ensure existing keys get a value (0 if missing this frame)
+        for (const [k, arr] of series) {
+            const v = current.get(k) ?? 0;
+            arr.push(v);
+            if (this._historyCapacity === 0) arr.length = 0;
+            else while (arr.length > this._historyCapacity) arr.shift();
+        }
+
+        // New keys discovered this frame: backfill zeros so lengths align
+        for (const [k, v] of current) {
+            if (series.has(k)) continue;
+            const arr = new Array<number>(sizeBefore).fill(0);
+            arr.push(v);
+            series.set(k, arr);
+            if (this._historyCapacity === 0) arr.length = 0;
+            else while (arr.length > this._historyCapacity) arr.shift();
+        }
+    }
+
+    /** @internal Called by Schedule/World.update to start a new profiling frame */
+    public _profBeginFrame(dt: number): number
+    {
+        this._frameCounter++;
+        this._lastDt = dt;
+
+        this._phaseMs.clear();
+        this._systemMs.clear();
+
+        if (!this._profilingEnabled) {
+            this._lastFrameMs = 0;
+            return 0;
+        }
+
+        return performance.now();
+    }
+
+    /** @internal Called by Schedule/World.update to end a new profiling frame */
+    public _profEndFrame(frameStartMs: number): void
+    {
+        if (!this._profilingEnabled) return;
+
+        this._lastFrameMs = performance.now() - frameStartMs;
+
+        // Update history (aligned series)
+        this._histDt.push(this._lastDt);
+        this._histFrameMs.push(this._lastFrameMs);
+        this._trimHistoryToCapacity();
+
+        this._pushSeriesFrame(this._histPhaseMs, this._phaseMs);
+        this._pushSeriesFrame(this._histSystemMs, this._systemMs);
+    }
+
+    /** @internal */
+    public _profAddPhase(phase: string, ms: number): void
+    {
+        if (!this._profilingEnabled) return;
+        this._phaseMs.set(phase, (this._phaseMs.get(phase) ?? 0) + ms);
+    }
+
+    /** @internal */
+    public _profAddSystem(name: string, ms: number): void
+    {
+        if (!this._profilingEnabled) return;
+        this._systemMs.set(name, (this._systemMs.get(name) ?? 0) + ms);
+    }
+
     private createDebugToggleButton(text: string, title: string): HTMLButtonElement
     {
         const btn = document.createElement("button");
@@ -191,8 +316,8 @@ export class StatsOverlay
     private toggleDebugLogging(): void
     {
         this.debugLoggingEnabled = !this.debugLoggingEnabled;
-        this.debugToggleButton.textContent = this.debugLoggingEnabled ? "🔊" : "🔇";
-        this.debugToggleButton.title = this.debugLoggingEnabled
+        this.debugToggleButton!.textContent = this.debugLoggingEnabled ? "🔊" : "🔇";
+        this.debugToggleButton!.title = this.debugLoggingEnabled
             ? "Console debug logging ON (click to disable)"
             : "Console debug logging OFF (click to enable)";
     }
@@ -205,11 +330,11 @@ export class StatsOverlay
 
             this.isDragging = true;
 
-            const rect = this.root.getBoundingClientRect();
+            const rect = this.root!.getBoundingClientRect();
             this.dragOffsetX = e.clientX - rect.left;
             this.dragOffsetY = e.clientY - rect.top;
 
-            this.header.style.cursor = "grabbing";
+            this.header!.style.cursor = "grabbing";
             document.body.style.userSelect = "none";
         };
 
@@ -220,29 +345,29 @@ export class StatsOverlay
             const newTop = e.clientY - this.dragOffsetY;
 
             // Clamp to viewport bounds
-            const rect = this.root.getBoundingClientRect();
+            const rect = this.root!.getBoundingClientRect();
             const maxLeft = window.innerWidth - rect.width;
             const maxTop = window.innerHeight - rect.height;
 
-            this.root.style.left = `${Math.max(0, Math.min(newLeft, maxLeft))}px`;
-            this.root.style.top = `${Math.max(0, Math.min(newTop, maxTop))}px`;
+            this.root!.style.left = `${Math.max(0, Math.min(newLeft, maxLeft))}px`;
+            this.root!.style.top = `${Math.max(0, Math.min(newTop, maxTop))}px`;
         };
 
         const onMouseUp = () => {
             if (!this.isDragging) return;
 
             this.isDragging = false;
-            this.header.style.cursor = "grab";
+            this.header!.style.cursor = "grab";
             document.body.style.userSelect = "";
         };
 
-        this.header.addEventListener("mousedown", onMouseDown);
+        this.header!.addEventListener("mousedown", onMouseDown);
         document.addEventListener("mousemove", onMouseMove);
         document.addEventListener("mouseup", onMouseUp);
 
         // Store references for cleanup
         (this as any)._dragCleanup = () => {
-            this.header.removeEventListener("mousedown", onMouseDown);
+            this.header!.removeEventListener("mousedown", onMouseDown);
             document.removeEventListener("mousemove", onMouseMove);
             document.removeEventListener("mouseup", onMouseUp);
         };
@@ -250,6 +375,8 @@ export class StatsOverlay
 
     private resizeCanvas(): void
     {
+        if (!this.canvas || !this.ctx) return;
+
         const dpr = window.devicePixelRatio || 1;
         const rect = this.canvas.getBoundingClientRect();
         const width = Math.min(this.opts.width, rect.width || this.opts.width);
@@ -265,26 +392,32 @@ export class StatsOverlay
 
     private toggle(): void
     {
+        if (!this.content || !this.toggleButton) return;
+
         this.isExpanded = !this.isExpanded;
         this.content.style.display = this.isExpanded ? "block" : "none";
         this.toggleButton.textContent = this.isExpanded ? "−" : "+";
     }
 
-    destroy(): void
+    public destroyOverlay(): void
     {
         (this as any)._dragCleanup?.();
-        this.resizeObserver.disconnect();
-        this.root.remove();
+        this.resizeObserver?.disconnect();
+        this.root?.remove();
+        this.isInitialized = false;
     }
 
     /** Convenience: call each frame */
-    public update(world: WorldApi): void
+    public updateOverlay(stats: WorldStats, statsHistory: WorldStatsHistory): void
     {
-        this.render(world.stats(), world.statsHistory());
+        if (!this.isInitialized) return;
+        this.render(stats, statsHistory);
     }
 
     private render(s: WorldStats, h: WorldStatsHistory): void
     {
+        if (!this.text || !this.ctx) return;
+
         const topPhases = Object.entries(s.phaseMs)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 6)
@@ -313,10 +446,10 @@ export class StatsOverlay
 
     private drawFrameGraph(h: WorldStatsHistory): void
     {
-        const ctx = this.ctx;
+        const ctx = this.ctx!;
         const dpr = window.devicePixelRatio || 1;
-        const w = this.canvas.width / dpr;
-        const hh = this.canvas.height / dpr;
+        const w = this.canvas!.width / dpr;
+        const hh = this.canvas!.height / dpr;
 
         ctx.clearRect(0, 0, w, hh);
 

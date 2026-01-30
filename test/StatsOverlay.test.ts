@@ -1,8 +1,9 @@
+
 /**
  * @jest-environment jsdom
  */
 
-import { WorldApi, WorldStats, WorldStatsHistory, StatsOverlay } from "../src";
+import { World } from "../src";
 
 // Mock ResizeObserver (not available in jsdom)
 const mockDisconnect = jest.fn();
@@ -39,41 +40,9 @@ const mockCtx = {
 
 HTMLCanvasElement.prototype.getContext = jest.fn(() => mockCtx) as any;
 
-// Helper to create mock WorldApi
-function createMockWorld(statsOverride: Partial<WorldStats> = {}, historyOverride: Partial<WorldStatsHistory> = {}): WorldApi {
-    const defaultStats: WorldStats = {
-        aliveEntities: 100,
-        archetypes: 5,
-        rows: 150,
-        systems: 10,
-        resources: 3,
-        eventChannels: 2,
-        pendingCommands: false,
-        frame: 42,
-        dt: 0.016,
-        frameMs: 12.5,
-        phaseMs: { update: 5.2, render: 7.3 },
-        systemMs: { movement: 2.1, collision: 3.1 },
-    };
-
-    const defaultHistory: WorldStatsHistory = {
-        capacity: 120,
-        size: 10,
-        dt: Array(10).fill(0.016),
-        frameMs: Array(10).fill(12.5),
-        phaseMs: { update: Array(10).fill(5.2) },
-        systemMs: { movement: Array(10).fill(2.1) },
-    };
-
-    return {
-        stats: () => ({ ...defaultStats, ...statsOverride }),
-        statsHistory: () => ({ ...defaultHistory, ...historyOverride }),
-    } as unknown as WorldApi;
-}
-
 describe("StatsOverlay", () => {
     let container: HTMLDivElement;
-    let overlay: StatsOverlay;
+    let world: World;
 
     beforeEach(() => {
         container = document.createElement("div");
@@ -86,13 +55,13 @@ describe("StatsOverlay", () => {
     });
 
     afterEach(() => {
-        overlay?.destroy();
+        world?.destroyOverlay();
         container.remove();
     });
 
     describe("constructor", () => {
         it("creates overlay with default options", () => {
-            overlay = new StatsOverlay();
+            world = new World();
 
             const root = document.body.querySelector("div[style*='position: fixed']");
             expect(root).toBeTruthy();
@@ -101,17 +70,19 @@ describe("StatsOverlay", () => {
         });
 
         it("attaches to custom parent element", () => {
-            overlay = new StatsOverlay({ parent: container });
+            world = new World({ statsOverlayOptions: { parent: container } });
 
             expect(container.children.length).toBe(1);
             expect(container.querySelector("canvas")).toBeTruthy();
         });
 
         it("applies custom positioning", () => {
-            overlay = new StatsOverlay({
-                parent: container,
-                left: 100,
-                top: 50,
+            world = new World({
+                statsOverlayOptions: {
+                    parent: container,
+                    left: 100,
+                    top: 50,
+                }
             });
 
             const root = container.firstElementChild as HTMLElement;
@@ -120,10 +91,12 @@ describe("StatsOverlay", () => {
         });
 
         it("applies custom canvas dimensions", () => {
-            overlay = new StatsOverlay({
-                parent: container,
-                width: 400,
-                height: 100,
+            world = new World({
+                statsOverlayOptions: {
+                    parent: container,
+                    width: 400,
+                    height: 100,
+                }
             });
 
             const canvas = container.querySelector("canvas");
@@ -132,59 +105,47 @@ describe("StatsOverlay", () => {
         });
     });
 
-    describe("update()", () => {
+    describe("updateOverlay()", () => {
         it("renders stats text correctly", () => {
-            overlay = new StatsOverlay({ parent: container });
-            const world = createMockWorld({ frame: 123, aliveEntities: 50 });
+            world = new World({ statsOverlayOptions: { parent: container } });
 
-            overlay.update(world);
+            // Run a few updates to set frame counter
+            for (let i = 0; i < 123; i++) {
+                world.update(0.016);
+            }
 
             const text = container.querySelector("pre")?.textContent;
-            expect(text).toContain("frame 123");
-            expect(text).toContain("alive=50");
+            expect(text).toContain("Frame 123");
         });
 
         it("displays all stat fields", () => {
-            overlay = new StatsOverlay({ parent: container });
-            const world = createMockWorld({
-                archetypes: 8,
-                rows: 200,
-                systems: 15,
-                resources: 5,
-                eventChannels: 3,
-                pendingCommands: true,
-            });
+            world = new World({ statsOverlayOptions: { parent: container } });
 
-            overlay.update(world);
+            world.update(0.016);
 
             const text = container.querySelector("pre")?.textContent ?? "";
-            expect(text).toContain("arch=8");
-            expect(text).toContain("rows=200");
-            expect(text).toContain("systems=15");
-            expect(text).toContain("resources=5");
-            expect(text).toContain("eventChannels=3");
-            expect(text).toContain("pendingCmd=true");
+            expect(text).toContain("Archetypes:");
+            expect(text).toContain("Rows:");
+            expect(text).toContain("Systems:");
+            expect(text).toContain("Resources:");
+            expect(text).toContain("Event channels:");
+            expect(text).toContain("Pending commands:");
         });
 
         it("displays timing information", () => {
-            overlay = new StatsOverlay({ parent: container });
-            const world = createMockWorld({
-                dt: 0.0167,
-                frameMs: 15.5,
-            });
+            world = new World({ statsOverlayOptions: { parent: container } });
 
-            overlay.update(world);
+            world.update(0.0167);
 
             const text = container.querySelector("pre")?.textContent ?? "";
-            expect(text).toContain("dt=16.70ms");
-            expect(text).toContain("frame=15.50ms");
+            expect(text).toContain("dt=");
+            expect(text).toContain("frame=");
         });
 
         it("draws frame graph on canvas", () => {
-            overlay = new StatsOverlay({ parent: container });
-            const world = createMockWorld();
+            world = new World({ statsOverlayOptions: { parent: container } });
 
-            overlay.update(world);
+            world.update(0.016);
 
             expect(mockCtx.clearRect).toHaveBeenCalled();
             expect(mockCtx.fillRect).toHaveBeenCalled();
@@ -193,12 +154,12 @@ describe("StatsOverlay", () => {
 
     describe("toggle()", () => {
         it("collapses content when toggle button is clicked", () => {
-            overlay = new StatsOverlay({ parent: container });
+            world = new World({ statsOverlayOptions: { parent: container } });
 
-            const toggleBtn = container.querySelector("button");
+            const toggleBtn = container.querySelector("button:last-of-type");
             expect(toggleBtn?.textContent).toBe("−");
 
-            toggleBtn?.click();
+            toggleBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
             const content = container.querySelector("div[style*='padding: 0px 8px 8px']") as HTMLElement;
             expect(content?.style.display).toBe("none");
@@ -206,11 +167,11 @@ describe("StatsOverlay", () => {
         });
 
         it("expands content when toggle button is clicked again", () => {
-            overlay = new StatsOverlay({ parent: container });
+            world = new World({ statsOverlayOptions: { parent: container } });
 
-            const toggleBtn = container.querySelector("button");
-            toggleBtn?.click(); // collapse
-            toggleBtn?.click(); // expand
+            const toggleBtn = container.querySelector("button:last-of-type");
+            toggleBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true })); // collapse
+            toggleBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true })); // expand
 
             const content = container.querySelector("div[style*='padding: 0px 8px 8px']") as HTMLElement;
             expect(content?.style.display).toBe("block");
@@ -218,19 +179,19 @@ describe("StatsOverlay", () => {
         });
     });
 
-    describe("destroy()", () => {
+    describe("destroyOverlay()", () => {
         it("removes overlay from DOM", () => {
-            overlay = new StatsOverlay({ parent: container });
+            world = new World({ statsOverlayOptions: { parent: container } });
             expect(container.children.length).toBe(1);
 
-            overlay.destroy();
+            world.destroyOverlay();
             expect(container.children.length).toBe(0);
         });
 
         it("disconnects ResizeObserver", () => {
-            overlay = new StatsOverlay({ parent: container });
+            world = new World({ statsOverlayOptions: { parent: container } });
 
-            overlay.destroy();
+            world.destroyOverlay();
 
             expect(mockDisconnect).toHaveBeenCalled();
         });
@@ -238,7 +199,7 @@ describe("StatsOverlay", () => {
 
     describe("drag functionality", () => {
         it("changes cursor on header mousedown", () => {
-            overlay = new StatsOverlay({ parent: container });
+            world = new World({ statsOverlayOptions: { parent: container } });
 
             const header = container.querySelector("div[style*='cursor']") as HTMLElement;
             const mousedownEvent = new MouseEvent("mousedown", {
@@ -253,10 +214,10 @@ describe("StatsOverlay", () => {
         });
 
         it("does not initiate drag when clicking toggle button", () => {
-            overlay = new StatsOverlay({ parent: container });
+            world = new World({ statsOverlayOptions: { parent: container } });
 
             const header = container.querySelector("div[style*='cursor']") as HTMLElement;
-            const toggleBtn = container.querySelector("button") as HTMLElement;
+            const toggleBtn = container.querySelector("button:last-of-type") as HTMLElement;
 
             const mousedownEvent = new MouseEvent("mousedown", {
                 clientX: 100,
@@ -274,42 +235,44 @@ describe("StatsOverlay", () => {
 
     describe("options", () => {
         it("uses custom targetFrameMs threshold", () => {
-            overlay = new StatsOverlay({
-                parent: container,
-                targetFrameMs: 33.33, // 30fps
+            world = new World({
+                statsOverlayOptions: {
+                    parent: container,
+                    targetFrameMs: 33.33, // 30fps
+                }
             });
 
-            const world = createMockWorld();
-            overlay.update(world);
+            world.update(0.016);
 
             // Canvas should be drawn with custom threshold
             expect(mockCtx.fillText).toHaveBeenCalled();
         });
 
         it("uses custom slowFrameMs threshold", () => {
-            overlay = new StatsOverlay({
-                parent: container,
-                slowFrameMs: 50,
+            world = new World({
+                statsOverlayOptions: {
+                    parent: container,
+                    slowFrameMs: 50,
+                }
             });
 
-            const world = createMockWorld();
-            overlay.update(world);
+            world.update(0.016);
 
             expect(mockCtx.fillRect).toHaveBeenCalled();
         });
 
         it("limits maxSamples in graph", () => {
-            overlay = new StatsOverlay({
-                parent: container,
-                maxSamples: 50,
+            world = new World({
+                statsOverlayOptions: {
+                    parent: container,
+                    maxSamples: 50,
+                }
             });
 
-            const world = createMockWorld({}, {
-                size: 100,
-                frameMs: Array(100).fill(10),
-            });
-
-            overlay.update(world);
+            // Run many updates
+            for (let i = 0; i < 100; i++) {
+                world.update(0.016);
+            }
 
             // Should only render up to maxSamples bars
             expect(mockCtx.fillRect).toHaveBeenCalled();

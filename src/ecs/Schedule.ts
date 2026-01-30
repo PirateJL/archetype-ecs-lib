@@ -197,6 +197,8 @@ export class Schedule {
         }
 
         worldInstance._profEndFrame(frameStart);
+
+        worldInstance.updateOverlay(worldInstance.stats(), worldInstance.statsHistory());
     }
 
     /**

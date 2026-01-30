@@ -19,6 +19,10 @@ describe("Schedule", () => {
                 if (throwLifecycleConflict) throw new Error("Lifecycle conflict");
             }),
 
+            stats: jest.fn(),
+            statsHistory: jest.fn(),
+            updateOverlay: jest.fn(() => { }),
+
             addSystem: jest.fn(),
             update: jest.fn(),
 
@@ -309,7 +313,7 @@ describe("Schedule", () => {
         const world = makeWorldStub({ hasPending: true });
 
         function WeirdThrowSystem() {
-            // message exists but is not a string => should hit JSON.stringify(error)
+            // the message exists but is not a string => should hit JSON.stringify(error)
             throw { message: 123, kind: "weird" };
         }
 

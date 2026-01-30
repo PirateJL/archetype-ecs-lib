@@ -28,8 +28,9 @@ import type {
     WorldStats,
     WorldStatsHistory
 } from "./Types";
+import { StatsOverlay, type StatsOverlayOptions } from "./stats/StatsOverlay";
 
-export class World implements WorldApi
+export class World extends StatsOverlay implements WorldApi
 {
     private readonly entities = new EntityManager();
 
@@ -47,38 +48,13 @@ export class World implements WorldApi
     /** @internal Phase -> systems mapping for Schedule */
     public readonly _scheduleSystems = new Map<string, SystemFn[]>();
 
-    // ---- Profiling / stats (last completed frame) ----
-    private _profilingEnabled = true;
-    private _frameCounter = 0;
-    private _lastDt = 0;
-    private _lastFrameMs = 0;
-    private readonly _phaseMs = new Map<string, number>();
-    private readonly _systemMs = new Map<string, number>();
-
-    // ---- Profiling history (rolling window) ----
-    private _historyCapacity = 120;
-    private readonly _histDt: number[] = [];
-    private readonly _histFrameMs: number[] = [];
-    private readonly _histPhaseMs = new Map<string, number[]>();
-    private readonly _histSystemMs = new Map<string, number[]>();
-
-    constructor()
+    constructor(options?: {statsOverlayOptions: StatsOverlayOptions})
     {
+        super(options?.statsOverlayOptions);
         // Archetype 0: empty signature
         const archetype0 = new Archetype(0, []);
         this.archetypes[0] = archetype0;
         this.archByKey.set("", archetype0);
-    }
-
-    public setProfilingEnabled(enabled: boolean): void
-    {
-        this._profilingEnabled = enabled;
-    }
-
-    public setProfilingHistorySize(frames: number): void
-    {
-        this._historyCapacity = Math.max(0, Math.floor(frames));
-        this._trimHistoryToCapacity();
     }
 
     public statsHistory(): WorldStatsHistory
@@ -146,94 +122,6 @@ export class World implements WorldApi
         };
     }
 
-    private _trimHistoryToCapacity(): void
-    {
-        const cap = this._historyCapacity;
-
-        const trimArray = (arr: number[]) => {
-            if (cap === 0) {
-                arr.length = 0;
-                return;
-            }
-            while (arr.length > cap) arr.shift();
-        };
-
-        trimArray(this._histDt);
-        trimArray(this._histFrameMs);
-        for (const arr of this._histPhaseMs.values()) trimArray(arr);
-        for (const arr of this._histSystemMs.values()) trimArray(arr);
-    }
-
-    private _pushSeriesFrame(series: Map<string, number[]>, current: Map<string, number>): void
-    {
-        const sizeBefore = this._histFrameMs.length; // same as dt length before push
-
-        // Ensure existing keys get a value (0 if missing this frame)
-        for (const [k, arr] of series) {
-            const v = current.get(k) ?? 0;
-            arr.push(v);
-            if (this._historyCapacity === 0) arr.length = 0;
-            else while (arr.length > this._historyCapacity) arr.shift();
-        }
-
-        // New keys discovered this frame: backfill zeros so lengths align
-        for (const [k, v] of current) {
-            if (series.has(k)) continue;
-            const arr = new Array<number>(sizeBefore).fill(0);
-            arr.push(v);
-            series.set(k, arr);
-            if (this._historyCapacity === 0) arr.length = 0;
-            else while (arr.length > this._historyCapacity) arr.shift();
-        }
-    }
-
-    /** @internal Called by Schedule/World.update to start a new profiling frame */
-    public _profBeginFrame(dt: number): number
-    {
-        this._frameCounter++;
-        this._lastDt = dt;
-
-        this._phaseMs.clear();
-        this._systemMs.clear();
-
-        if (!this._profilingEnabled) {
-            this._lastFrameMs = 0;
-            return 0;
-        }
-
-        return performance.now();
-    }
-
-    /** @internal Called by Schedule/World.update to end a new profiling frame */
-    public _profEndFrame(frameStartMs: number): void
-    {
-        if (!this._profilingEnabled) return;
-
-        this._lastFrameMs = performance.now() - frameStartMs;
-
-        // Update history (aligned series)
-        this._histDt.push(this._lastDt);
-        this._histFrameMs.push(this._lastFrameMs);
-        this._trimHistoryToCapacity();
-
-        this._pushSeriesFrame(this._histPhaseMs, this._phaseMs);
-        this._pushSeriesFrame(this._histSystemMs, this._systemMs);
-    }
-
-    /** @internal */
-    public _profAddPhase(phase: string, ms: number): void
-    {
-        if (!this._profilingEnabled) return;
-        this._phaseMs.set(phase, (this._phaseMs.get(phase) ?? 0) + ms);
-    }
-
-    /** @internal */
-    public _profAddSystem(name: string, ms: number): void
-    {
-        if (!this._profilingEnabled) return;
-        this._systemMs.set(name, (this._systemMs.get(name) ?? 0) + ms);
-    }
-
     /** Queue structural changes to apply safely after systems run. */
     public cmd(): Commands
     {
@@ -296,12 +184,14 @@ export class World implements WorldApi
             this._profAddPhase("update", this._profilingEnabled ? (performance.now() - frameStart) : 0);
             this._profEndFrame(frameStart);
         }
+
+        this.updateOverlay(this.stats(), this.statsHistory());
     }
 
     public flush(): void
     {
         this._ensureNotIterating("flush");
-        // Apply commands until queue is empty. This allows spawn(init) to enqueue add/remove
+        // Apply commands until the queue is empty. This allows spawn(init) to enqueue add/remove
         // operations that will be applied during the same flush.
         while (true) {
             const ops = this.commands.drain();
