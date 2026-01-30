@@ -318,8 +318,6 @@ function main() {
     world.setProfilingEnabled(true);
     world.setProfilingHistorySize(240);
 
-    const overlay = new StatsOverlay({ width: 340, height: 90 });
-
     // Resources
     world.initResource(InputResource, () => new InputResource());
     world.initResource(TextureCacheResource, () => new TextureCacheResource());
@@ -333,7 +331,7 @@ function main() {
         // only left click
         if (e.button !== 0) return;
 
-        // ignore if pointer is not on the canvas
+        // ignore if a pointer is not on the canvas
         if (e.target !== three.renderer.domElement) return;
 
         input.pushClick(e.clientX, e.clientY, e.button);
@@ -397,8 +395,6 @@ function main() {
         last = now;
 
         schedule.run(world, dt, phases);
-
-        overlay.update(world);
 
         requestAnimationFrame(frame);
     }
