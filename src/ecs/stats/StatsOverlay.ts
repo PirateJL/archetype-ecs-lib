@@ -38,6 +38,7 @@ export class StatsOverlay
     private isExpanded: boolean = true;
     private debugLoggingEnabled: boolean = false;
     private isInitialized: boolean = false;
+    private debugingEnabled: boolean = false;
 
     // ---- Profiling / stats (last completed frame) ----
     protected _profilingEnabled = true;
@@ -62,7 +63,7 @@ export class StatsOverlay
     constructor(options: StatsOverlayOptions = {})
     {
         this.opts = {
-            parent: null,
+            parent: options.parent ?? null,
             left: options.left ?? 8,
             top: options.top ?? 8,
             width: options.width ?? 320,
@@ -71,12 +72,6 @@ export class StatsOverlay
             slowFrameMs: options.slowFrameMs ?? 20,
             maxSamples: options.maxSamples ?? 240
         };
-
-        // Only initialize DOM if we're in a browser environment
-        if (typeof document !== "undefined") {
-            this.opts.parent = options.parent ?? document.body;
-            this.initializeDom();
-        }
     }
 
     private initializeDom(): void
@@ -182,6 +177,20 @@ export class StatsOverlay
         this.resizeObserver.observe(this.root);
 
         this.setupDrag();
+    }
+
+    public setDebugging(enabled: boolean): void
+    {
+        if (enabled) {
+            // Only initialize DOM if we're in a browser environment
+            if (typeof document !== "undefined") {
+                this.opts.parent = this.opts.parent ?? document.body;
+                this.initializeDom();
+            }
+        } else {
+            this.destroyOverlay();
+        }
+        this.debugingEnabled = enabled;
     }
 
     public setProfilingEnabled(enabled: boolean): void
@@ -410,13 +419,13 @@ export class StatsOverlay
     /** Convenience: call each frame */
     public updateOverlay(stats: WorldStats, statsHistory: WorldStatsHistory): void
     {
-        if (!this.isInitialized) return;
+        if (!this.debugingEnabled || !this.isInitialized) return;
         this.render(stats, statsHistory);
     }
 
     private render(s: WorldStats, h: WorldStatsHistory): void
     {
-        if (!this.text || !this.ctx) return;
+        if (!this.debugingEnabled || !this.text || !this.ctx) return;
 
         const topPhases = Object.entries(s.phaseMs)
             .sort((a, b) => b[1] - a[1])

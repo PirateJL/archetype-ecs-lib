@@ -62,6 +62,7 @@ describe("StatsOverlay", () => {
     describe("constructor", () => {
         it("creates overlay with default options", () => {
             world = new World();
+            world.setDebugging(true);
 
             const root = document.body.querySelector("div[style*='position: fixed']");
             expect(root).toBeTruthy();
@@ -71,6 +72,7 @@ describe("StatsOverlay", () => {
 
         it("attaches to custom parent element", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
 
             expect(container.children.length).toBe(1);
             expect(container.querySelector("canvas")).toBeTruthy();
@@ -84,6 +86,7 @@ describe("StatsOverlay", () => {
                     top: 50,
                 }
             });
+            world.setDebugging(true);
 
             const root = container.firstElementChild as HTMLElement;
             expect(root.style.left).toBe("100px");
@@ -98,6 +101,7 @@ describe("StatsOverlay", () => {
                     height: 100,
                 }
             });
+            world.setDebugging(true);
 
             const canvas = container.querySelector("canvas");
             expect(canvas?.style.width).toBe("400px");
@@ -108,8 +112,9 @@ describe("StatsOverlay", () => {
     describe("updateOverlay()", () => {
         it("renders stats text correctly", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
 
-            // Run a few updates to set frame counter
+            // Run a few updates to set a frame counter
             for (let i = 0; i < 123; i++) {
                 world.update(0.016);
             }
@@ -120,6 +125,7 @@ describe("StatsOverlay", () => {
 
         it("displays all stat fields", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
 
             world.update(0.016);
 
@@ -134,6 +140,7 @@ describe("StatsOverlay", () => {
 
         it("displays timing information", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
 
             world.update(0.0167);
 
@@ -144,6 +151,7 @@ describe("StatsOverlay", () => {
 
         it("draws frame graph on canvas", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
 
             world.update(0.016);
 
@@ -155,6 +163,7 @@ describe("StatsOverlay", () => {
     describe("toggle()", () => {
         it("collapses content when toggle button is clicked", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
 
             const toggleBtn = container.querySelector("button:last-of-type");
             expect(toggleBtn?.textContent).toBe("−");
@@ -168,6 +177,7 @@ describe("StatsOverlay", () => {
 
         it("expands content when toggle button is clicked again", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
 
             const toggleBtn = container.querySelector("button:last-of-type");
             toggleBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true })); // collapse
@@ -182,6 +192,7 @@ describe("StatsOverlay", () => {
     describe("destroyOverlay()", () => {
         it("removes overlay from DOM", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
             expect(container.children.length).toBe(1);
 
             world.destroyOverlay();
@@ -190,6 +201,7 @@ describe("StatsOverlay", () => {
 
         it("disconnects ResizeObserver", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
 
             world.destroyOverlay();
 
@@ -200,6 +212,7 @@ describe("StatsOverlay", () => {
     describe("drag functionality", () => {
         it("changes cursor on header mousedown", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
 
             const header = container.querySelector("div[style*='cursor']") as HTMLElement;
             const mousedownEvent = new MouseEvent("mousedown", {
@@ -215,6 +228,7 @@ describe("StatsOverlay", () => {
 
         it("does not initiate drag when clicking toggle button", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
 
             const header = container.querySelector("div[style*='cursor']") as HTMLElement;
             const toggleBtn = container.querySelector("button:last-of-type") as HTMLElement;
@@ -241,6 +255,7 @@ describe("StatsOverlay", () => {
                     targetFrameMs: 33.33, // 30fps
                 }
             });
+            world.setDebugging(true);
 
             world.update(0.016);
 
@@ -255,6 +270,7 @@ describe("StatsOverlay", () => {
                     slowFrameMs: 50,
                 }
             });
+            world.setDebugging(true);
 
             world.update(0.016);
 
@@ -268,6 +284,7 @@ describe("StatsOverlay", () => {
                     maxSamples: 50,
                 }
             });
+            world.setDebugging(true);
 
             // Run many updates
             for (let i = 0; i < 100; i++) {
