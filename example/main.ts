@@ -315,6 +315,7 @@ function main() {
     const schedule = new Schedule();
 
     // enable profiling for visual stats
+    world.setDebugging(true);
     world.setProfilingEnabled(true);
     world.setProfilingHistorySize(240);
 
