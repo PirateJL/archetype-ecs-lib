@@ -206,10 +206,10 @@ const renderSync: SystemFn = (w: WorldApi) => {
 // Schedule: phase ordering + flush boundaries
 // --------------------
 // Schedule runs phases in order and calls world.flush() after each phase. :contentReference[oaicite:2]{index=2}
-sched.add("input", inputPhase);
-sched.add("sim", movementSystem);
-sched.add("sim", lifetimeSystem);
-sched.add("render", renderSync);
+sched.add(world, "input", inputPhase);
+sched.add(world, "sim", movementSystem);
+sched.add(world, "sim", lifetimeSystem);
+sched.add(world, "render", renderSync);
 
 const phases = ["input", "sim", "render"];
 

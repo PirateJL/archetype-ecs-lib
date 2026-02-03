@@ -4,20 +4,24 @@ describe("Schedule", () => {
 
     function makeWorldStub(opts?: {
         hasPending?: boolean;
-        usedWorldUpdate?: boolean;
+        systemCount?: number;
         throwLifecycleConflict?: boolean;
     }): WorldApi {
         const hasPending = opts?.hasPending ?? true;
-        const usedWorldUpdate = opts?.usedWorldUpdate ?? false;
+        const systemCount = opts?.systemCount ?? 0;
         const throwLifecycleConflict = opts?.throwLifecycleConflict ?? false;
 
         const world: any = {
             // Schedule.run casts WorldApi -> World to read these
-            _hasUsedWorldUpdate: usedWorldUpdate,
-            _hasUsedScheduleRun: false,
+            _scheduleSystems: new Map<string, any[]>(),
+            _getSystemCount: jest.fn(() => systemCount),
             _warnAboutLifecycleConflict: jest.fn(() => {
                 if (throwLifecycleConflict) throw new Error("Lifecycle conflict");
             }),
+
+            stats: jest.fn(),
+            statsHistory: jest.fn(),
+            updateOverlay: jest.fn(() => { }),
 
             addSystem: jest.fn(),
             update: jest.fn(),
@@ -71,6 +75,11 @@ describe("Schedule", () => {
             query: jest.fn(function* () { /* empty */ }),
             queryTables: jest.fn(function* () { /* empty */ }),
             queryEach: jest.fn(function* () { /* empty */ }),
+
+            _profBeginFrame: jest.fn(),
+            _profEndFrame: jest.fn(),
+            _profAddPhase: jest.fn(),
+            _profAddSystem: jest.fn()
         };
 
         return world as WorldApi;
@@ -95,16 +104,15 @@ describe("Schedule", () => {
         const order = ["b", "a"];
         sched.setOrder(order);
 
-        // mutate caller array to ensure Schedule cloned it
+        // mutate a caller array to ensure Schedule cloned it
         order.reverse();
 
-        sched.add("a", () => calls.push("a"));
-        sched.add("b", () => calls.push("b"));
+        sched.add(world, "a", () => calls.push("a"));
+        sched.add(world, "b", () => calls.push("b"));
 
         sched.run(world, 0.016);
 
         expect(calls).toEqual(["b", "swap", "a", "swap"]);
-        expect((world as any)._hasUsedScheduleRun).toBe(true);
     });
 
     test("setBoundaryMode('manual') disables flush/swap between phases", () => {
@@ -112,8 +120,8 @@ describe("Schedule", () => {
         const world = makeWorldStub({ hasPending: true });
 
         const calls: string[] = [];
-        sched.add("a", () => calls.push("a"));
-        sched.add("b", () => calls.push("b"));
+        sched.add(world, "a", () => calls.push("a"));
+        sched.add(world, "b", () => calls.push("b"));
 
         sched.setBoundaryMode("manual");
         sched.run(world, 0.016, ["a", "b"]);
@@ -129,8 +137,8 @@ describe("Schedule", () => {
         // hasPending = false: should not flush, but should swap
         const world = makeWorldStub({ hasPending: false });
 
-        sched.add("a", () => { /* noop */ });
-        sched.add("b", () => { /* noop */ });
+        sched.add(world, "a", () => { /* noop */ });
+        sched.add(world, "b", () => { /* noop */ });
 
         sched.run(world, 0.016, ["a", "b"]);
 
@@ -146,7 +154,7 @@ describe("Schedule", () => {
         (world.flush as any).mockImplementation(() => calls.push("flush"));
         (world.swapEvents as any).mockImplementation(() => calls.push("swap"));
 
-        sched.add("a", () => calls.push("a1"));
+        sched.add(world, "a", () => calls.push("a1"));
 
         sched.run(world, 0.016, ["a", "missing"]);
 
@@ -158,20 +166,21 @@ describe("Schedule", () => {
     test("after() throws if called before any add()", () => {
         const sched = new Schedule();
 
-        expect(() => sched.after("input")).toThrow('Schedule.after("input") must be called after schedule.add(phase, fn).');
+        expect(() => sched.after("input")).toThrow('Schedule.after("input") must be called after schedule.add(world, phase, fn).');
     });
 
     test("before() throws if called before any add()", () => {
         const sched = new Schedule();
 
-        expect(() => sched.before("render")).toThrow('Schedule.before("render") must be called after schedule.add(phase, fn).');
+        expect(() => sched.before("render")).toThrow('Schedule.before("render") must be called after schedule.add(world, phase, fn).');
     });
 
     test("add(...) returns constraint helpers; .after()/.before() add constraints and return schedule", () => {
         const sched = new Schedule();
+        const world = makeWorldStub({ hasPending: false });
         const fn = jest.fn();
 
-        const helpers = sched.add("sim", fn);
+        const helpers = sched.add(world, "sim", fn);
         expect(helpers.after("input")).toBe(sched);
         expect(helpers.before("render")).toBe(sched);
     });
@@ -184,9 +193,9 @@ describe("Schedule", () => {
         (world.swapEvents as any).mockImplementation(() => { /* ignore boundary */ });
 
         // Add in an order that is not the final order
-        sched.add("render", () => calls.push("render")).after("sim");
-        sched.add("sim", () => calls.push("sim")).after("input");
-        sched.add("input", () => calls.push("input"));
+        sched.add(world, "render", () => calls.push("render")).after("sim");
+        sched.add(world, "sim", () => calls.push("sim")).after("input");
+        sched.add(world, "input", () => calls.push("input"));
 
         sched.run(world, 0.016);
 
@@ -201,7 +210,7 @@ describe("Schedule", () => {
         (world.swapEvents as any).mockImplementation(() => { /* ignore boundary */ });
 
         // 'input' is referenced, but not added with a system.
-        sched.add("sim", () => seen.push("sim")).after("input");
+        sched.add(world, "sim", () => seen.push("sim")).after("input");
 
         sched.run(world, 0.016);
 
@@ -217,8 +226,8 @@ describe("Schedule", () => {
         const calls: string[] = [];
         (world.swapEvents as any).mockImplementation(() => { /* ignore boundary */ });
 
-        sched.add("z", () => calls.push("z"));
-        sched.add("a", () => calls.push("a"));
+        sched.add(world, "z", () => calls.push("z"));
+        sched.add(world, "a", () => calls.push("a"));
 
         sched.run(world, 0.016);
 
@@ -236,7 +245,7 @@ describe("Schedule", () => {
         // b -> sim and a -> sim. Their relative order is unconstrained and not in stableRank,
         // so lexicographic fallback should apply: 'a' before 'b' (not directly observable via systems),
         // but we can observe that sim runs after both regardless.
-        const h = sched.add("sim", () => calls.push("sim"));
+        const h = sched.add(world, "sim", () => calls.push("sim"));
         h.after("b");
         h.after("a");
 
@@ -247,10 +256,11 @@ describe("Schedule", () => {
 
     test("throws on invalid self-constraint (before === after)", () => {
         const sched = new Schedule();
+        const world = makeWorldStub({ hasPending: false });
         const fn = jest.fn();
 
-        expect(() => sched.add("a", fn).after("a")).toThrow(/cannot be before\/after itself/i);
-        expect(() => sched.add("b", fn).before("b")).toThrow(/cannot be before\/after itself/i);
+        expect(() => sched.add(world, "a", fn).after("a")).toThrow(/cannot be before\/after itself/i);
+        expect(() => sched.add(world, "b", fn).before("b")).toThrow(/cannot be before\/after itself/i);
     });
 
     test("throws on cyclic constraints when computing phase order", () => {
@@ -258,9 +268,9 @@ describe("Schedule", () => {
         const world = makeWorldStub({ hasPending: false });
 
         // tslint:disable-next-line:no-empty
-        sched.add("a", () => { }).after("b"); // b -> a
+        sched.add(world, "a", () => { }).after("b"); // b -> a
         // tslint:disable-next-line:no-empty
-        sched.add("b", () => { }).after("a"); // a -> b
+        sched.add(world, "b", () => { }).after("a"); // a -> b
 
         expect(() => sched.run(world, 0.016)).toThrow(/cycle/i);
     });
@@ -273,7 +283,7 @@ describe("Schedule", () => {
             throw new Error("boom!");
         };
 
-        sched.add("sim", BoomSystem);
+        sched.add(world, "sim", BoomSystem);
 
         expect(() => sched.run(world as any, 0.016, ["sim"]))
             .toThrow("[phase=sim system=BoomSystem] boom!");
@@ -289,7 +299,7 @@ describe("Schedule", () => {
         const anon = (_w: any, _dt: number) => { throw new Error("boom!"); };
         Object.defineProperty(anon, "name", { value: "", configurable: true });
 
-        sched.add("sim", anon as any);
+        sched.add(world, "sim", anon as any);
 
         expect(() => sched.run(world as any, 0.016, ["sim"]))
             .toThrow("[phase=sim system=<anonymous>] boom!");
@@ -303,11 +313,11 @@ describe("Schedule", () => {
         const world = makeWorldStub({ hasPending: true });
 
         function WeirdThrowSystem() {
-            // message exists but is not a string => should hit JSON.stringify(error)
+            // the message exists but is not a string => should hit JSON.stringify(error)
             throw { message: 123, kind: "weird" };
         }
 
-        sched.add("sim", WeirdThrowSystem as any);
+        sched.add(world, "sim", WeirdThrowSystem as any);
 
         expect(() => sched.run(world as any, 0.016, ["sim"]))
             .toThrow('[phase=sim system=WeirdThrowSystem] {"message":123,"kind":"weird"}');
@@ -316,24 +326,23 @@ describe("Schedule", () => {
         expect(world.swapEvents).not.toHaveBeenCalled();
     });
 
-    test("lifecycle conflict: if world._hasUsedWorldUpdate is true, Schedule.run calls _warnAboutLifecycleConflict", () => {
+    test("lifecycle conflict: Schedule.run calls _warnAboutLifecycleConflict when systemCount > 0", () => {
         const sched = new Schedule();
-        const world = makeWorldStub({ usedWorldUpdate: true });
+        const world = makeWorldStub({ systemCount: 1 });
 
-        sched.add("sim", () => { /* noop */ });
+        sched.add(world, "sim", () => { /* noop */ });
 
         sched.run(world, 0.016, ["sim"]);
 
         expect((world as any)._warnAboutLifecycleConflict).toHaveBeenCalledWith("Schedule.run");
     });
 
-    test("lifecycle conflict: if _warnAboutLifecycleConflict throws, Schedule.run propagates it and does not set _hasUsedScheduleRun", () => {
+    test("lifecycle conflict: if _warnAboutLifecycleConflict throws, Schedule.run propagates it", () => {
         const sched = new Schedule();
-        const world = makeWorldStub({ usedWorldUpdate: true, throwLifecycleConflict: true });
+        const world = makeWorldStub({ systemCount: 1, throwLifecycleConflict: true });
 
-        sched.add("sim", () => { /* noop */ });
+        sched.add(world, "sim", () => { /* noop */ });
 
         expect(() => sched.run(world, 0.016, ["sim"])).toThrow("Lifecycle conflict");
-        expect((world as any)._hasUsedScheduleRun).toBe(false);
     });
 });

@@ -55,8 +55,8 @@ function applyDamageSystem(w: WorldApi, _dt: number) {
 Schedule order:
 
 ```ts
-schedule.add("update", combatSystem);
-schedule.add("afterUpdate", applyDamageSystem);
+schedule.add(world, "update", combatSystem);
+schedule.add(world, "afterUpdate", applyDamageSystem);
 ```
 
 ---
@@ -83,10 +83,10 @@ function audioSystem(w: WorldApi, _dt: number) {
 Example pipeline:
 
 ```ts
-schedule.add("update", combatSystem);            // emits PlaySoundEvent
-schedule.add("afterUpdate", forwardSoundSystem); // forwards -> render
-schedule.add("afterRender", forwardSoundSystem); // forwards -> audio
-schedule.add("audio", audioSystem);              // consumes
+schedule.add(world, "update", combatSystem);            // emits PlaySoundEvent
+schedule.add(world, "afterUpdate", forwardSoundSystem); // forwards -> render
+schedule.add(world, "afterRender", forwardSoundSystem); // forwards -> audio
+schedule.add(world, "audio", audioSystem);              // consumes
 ```
 
 ---
