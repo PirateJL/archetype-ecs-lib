@@ -38,7 +38,7 @@ export class Archetype
             this.entities[row] = moved;
             this.entities.pop();
 
-            for (const [_, col] of this.cols) {
+            for (const [, col] of this.cols) {
                 col[row] = col[last]!;
                 col.pop();
             }

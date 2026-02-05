@@ -16,5 +16,8 @@ module.exports = {
         "!**/*.d.ts"
     ],
     coverageDirectory: "coverage",
-    coverageReporters: ["json-summary", "lcov", "text-summary"]
+    coverageReporters: ["json-summary", "lcov", "text-summary"],
+    testEnvironmentOptions: {
+        customExportConditions: ["node", "node-addons"],
+    }
 };

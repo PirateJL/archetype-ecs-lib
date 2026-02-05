@@ -143,11 +143,11 @@ describe("Events - Schedule phase delivery", () => {
 
         const got: number[] = [];
 
-        sched.add("a", (world: WorldApi) => {
+        sched.add(w, "a", (world: WorldApi) => {
             world.emit(Evt, new Evt(42));
         });
 
-        sched.add("b", (world: WorldApi) => {
+        sched.add(w, "b", (world: WorldApi) => {
             world.drainEvents(Evt, (ev: Evt) => got.push(ev.n));
         });
 
@@ -161,13 +161,13 @@ describe("Events - Schedule phase delivery", () => {
 
         const got: number[] = [];
 
-        sched.add("a", (world: WorldApi) => {
+        sched.add(w, "a", (world: WorldApi) => {
             world.emit(Evt, new Evt(1));
             world.emit(Evt, new Evt(2));
             world.emit(Evt, new Evt(3));
         });
 
-        sched.add("b", (world: WorldApi) => {
+        sched.add(w, "b", (world: WorldApi) => {
             world.drainEvents(Evt, (ev: Evt) => got.push(ev.n));
         });
 

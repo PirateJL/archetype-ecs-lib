@@ -108,7 +108,7 @@ const logSystem: SystemFn = (w: WorldApi, dt: number) => {
 
 ---
 
-## 8) Run systems via Schedule (phases)
+## 8) Run systems via world, ule (phases)
 
 1. Create a schedule
 2. Register systems under phases
@@ -117,12 +117,12 @@ const logSystem: SystemFn = (w: WorldApi, dt: number) => {
 ```ts
 const sched = new Schedule();
 
-sched.add("sim", movementSystem);
-sched.add("sim", lifetimeSystem);
+sched.add(world, "sim", movementSystem);
+sched.add(world, "sim", lifetimeSystem);
 
 // log in a separate phase so structural changes are already flushed
 let frameNo = 0;
-sched.add("cleanup", (w: WorldApi) => {
+sched.add(world, "cleanup", (w: WorldApi) => {
   frameNo++;
   logSystem(w, frameNo);
 });
@@ -148,7 +148,7 @@ for (let i = 0; i < 20; i++) {
 ## 10) Full file (copy/paste)
 
 ```ts
-import { World, WorldApi Schedule, SystemFn } from "archetype-ecs-lib";
+import { World, WorldApi, Schedule, SystemFn } from "archetype-ecs-lib";
 
 class Position { constructor(public x = 0, public y = 0) {} }
 class Velocity { constructor(public x = 0, public y = 0) {} }
@@ -191,11 +191,11 @@ const logSystem: SystemFn = (w: WorldApi, dt: number) => {
 }
 
 const sched = new Schedule();
-sched.add("sim", movementSystem);
-sched.add("sim", lifetimeSystem);
+sched.add(world, "sim", movementSystem);
+sched.add(world, "sim", lifetimeSystem);
 
 let frameNo = 0;
-sched.add("cleanup", (w: WorldApi) => {
+sched.add(world, "cleanup", (w: WorldApi) => {
   frameNo++;
   logSystem(w, frameNo);
 });

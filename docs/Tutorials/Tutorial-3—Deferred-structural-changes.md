@@ -111,14 +111,14 @@ Use `Schedule`, which flushes after each phase:
 ```ts
 const sched = new Schedule();
 
-sched.add("sim", (w: WorldApi) => {
+sched.add(world, "sim", (w: WorldApi) => {
   // move
   for (const { c1: pos, c2: vel } of w.query(Position, Velocity)) {
     pos.x += vel.x;
   }
 });
 
-sched.add("cleanup", (w: WorldApi) => {
+sched.add(world, "cleanup", (w: WorldApi) => {
   // safely despawn based on updated positions
   safeDespawnInsideQuery(w);
 });
@@ -210,13 +210,13 @@ function logPositions(w: WorldApi, label: string) {
 
 const sched = new Schedule();
 
-sched.add("sim", (w: WorldApi) => {
+sched.add(world, "sim", (w: WorldApi) => {
   for (const { c1: pos, c2: vel } of w.query(Position, Velocity)) {
     pos.x += vel.x;
   }
 });
 
-sched.add("cleanup", (w: WorldApi) => {
+sched.add(world, "cleanup", (w: WorldApi) => {
   safeDespawnInsideQuery(w);
 });
 
