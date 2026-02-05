@@ -1,4 +1,4 @@
-import { ComponentCtor, Schedule, WorldApi } from "../src";
+import { Schedule, WorldApi } from "../src";
 
 describe("Schedule", () => {
 
@@ -31,14 +31,13 @@ describe("Schedule", () => {
 
             // ---- Resources (minimal stubs) ----
             // tslint:disable-next-line:no-empty
-            setResource: jest.fn(<T>(_key: ComponentCtor<T>, _value: T) => { }),
-            getResource: jest.fn(<T>(_key: ComponentCtor<T>) => undefined as T | undefined),
-            requireResource: jest.fn(<T>(key: ComponentCtor<T>) => {
-                throw new Error(`Missing resource ${String((key as any)?.name ?? "resource")}`);
+            setResource: jest.fn(() => { }),
+            getResource: jest.fn(() => { }),
+            requireResource: jest.fn(() => {
             }),
-            hasResource: jest.fn(<T>(_key: ComponentCtor<T>) => false),
-            removeResource: jest.fn(<T>(_key: ComponentCtor<T>) => false),
-            initResource: jest.fn(<T>(_key: ComponentCtor<T>, factory: () => T) => factory()),
+            hasResource: jest.fn(() => false),
+            removeResource: jest.fn(() => false),
+            initResource: jest.fn(<T>(factory: () => T) => factory()),
 
             // ---- Events (minimal stubs) ----
             emit: jest.fn(),
@@ -279,7 +278,7 @@ describe("Schedule", () => {
         const sched = new Schedule();
         const world = makeWorldStub({ hasPending: true });
 
-        const BoomSystem = (_w: any, _dt: number) => {
+        const BoomSystem = () => {
             throw new Error("boom!");
         };
 
@@ -296,7 +295,7 @@ describe("Schedule", () => {
         const sched = new Schedule();
         const world = makeWorldStub({ hasPending: true });
 
-        const anon = (_w: any, _dt: number) => { throw new Error("boom!"); };
+        const anon = () => { throw new Error("boom!"); };
         Object.defineProperty(anon, "name", { value: "", configurable: true });
 
         sched.add(world, "sim", anon as any);

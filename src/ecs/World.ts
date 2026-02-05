@@ -566,7 +566,7 @@ export class World extends StatsOverlay implements WorldApi
     public queryEach(...args: any[]): void
     {
         // tslint:disable-next-line:ban-types
-        const fn = args[args.length - 1] as Function;
+        const fn = args[args.length - 1] as any;
         const ctors = args.slice(0, args.length - 1) as ComponentCtor<any>[];
 
         const { requested, needSorted } = World._buildQueryTypeIds(ctors);

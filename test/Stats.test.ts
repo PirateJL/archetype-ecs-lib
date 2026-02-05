@@ -118,8 +118,8 @@ describe("World Stats", () => {
         it("records frameMs timing", () => {
             world.addSystem(() => {
                 // Simulate some work
-                let sum = 0;
-                for (let i = 0; i < 1000; i++) sum += i;
+                //let sum = 0;
+                //for (let i = 0; i < 1000; i++) sum += i;
             });
 
             world.update(0.016);

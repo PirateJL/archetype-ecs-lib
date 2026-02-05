@@ -14,7 +14,7 @@ export type EntityMeta = {
     row: number;    // row in that archetype
 }
 
-export type Column<T = unknown> = T[];
+export type Column<T = any> = T[];
 
 export type Signature = ReadonlyArray<TypeId>;
 
