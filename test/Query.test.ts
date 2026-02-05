@@ -100,7 +100,9 @@ describe("Query", () => {
         expect(() => world.despawn(e1)).toThrow(/Cannot do structural change/i);
 
         // exhausting iterator should clear the flag (finally)
-        while (!iter.next().done) {}
+        while (!iter.next().done) {
+            // intentionally empty - exhausting iterator
+        }
 
         // now should work
         expect(() => world.add(e1, Velocity, new Velocity(1, 1))).not.toThrow();
@@ -189,7 +191,10 @@ describe("Query", () => {
         expect(() => w.remove(e1, Position)).toThrow(/Cannot do structural change/i);
         expect(() => w.despawn(e1)).toThrow(/Cannot do structural change/i);
 
-        while (!iter.next().done) {}
+        // exhausting iterator should clear the flag (finally)
+        while (!iter.next().done) {
+            // intentionally empty - exhausting iterator
+        }
 
         expect(() => w.add(e1, Velocity, new Velocity(1, 1))).not.toThrow();
     });
@@ -247,7 +252,7 @@ describe("Query", () => {
         world.add(e1, Position, new Position(1, 1));
 
         expect(() => {
-            world.queryEach(Position, (_e, _p) => {
+            world.queryEach(Position, () => {
                 world.add(e1, Velocity, new Velocity(1, 1));
             });
         }).toThrow(/Cannot do structural change/i);

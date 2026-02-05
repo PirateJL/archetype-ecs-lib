@@ -15,7 +15,7 @@ class MockResizeObserver {
     unobserve = mockUnobserve;
     disconnect = mockDisconnect;
 }
-(global as any).ResizeObserver = MockResizeObserver;
+(global as unknown as { ResizeObserver: any }).ResizeObserver = MockResizeObserver;
 
 // Mock canvas context
 const mockCtx = {
