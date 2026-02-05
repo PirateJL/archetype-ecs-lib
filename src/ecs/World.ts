@@ -565,8 +565,7 @@ export class World extends StatsOverlay implements WorldApi
     public queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
     public queryEach(...args: any[]): void
     {
-        // tslint:disable-next-line:ban-types
-        const fn = args[args.length - 1] as any;
+        const fn = args[args.length - 1] as (...params: unknown[]) => void;
         const ctors = args.slice(0, args.length - 1) as ComponentCtor<any>[];
 
         const { requested, needSorted } = World._buildQueryTypeIds(ctors);
