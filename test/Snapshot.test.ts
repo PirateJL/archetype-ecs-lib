@@ -1,4 +1,4 @@
-import { type ComponentCtor, type SnapshotCodec, World } from "../src";
+import { type ComponentCtor, type SnapshotCodec, type WorldSnapshot, World } from "../src";
 
 class Position {
     constructor(public x = 0, public y = 0) { }
@@ -55,6 +55,65 @@ const seedCodec: SnapshotCodec<SeedRes, { seed: number }> = {
     serialize: (v) => ({ seed: v.seed }),
     deserialize: (data) => ({ seed: data.seed })
 };
+
+function buildPositionCodec(key: string): SnapshotCodec<Position, { x: number; y: number }>
+{
+    return {
+        key,
+        serialize: (v) => ({ x: v.x, y: v.y }),
+        deserialize: (data) => new Position(data.x, data.y)
+    };
+}
+
+function buildVelocityCodec(key: string): SnapshotCodec<Velocity, { dx: number; dy: number }>
+{
+    return {
+        key,
+        serialize: (v) => ({ dx: v.dx, dy: v.dy }),
+        deserialize: (data) => new Velocity(data.dx, data.dy)
+    };
+}
+
+function buildSaveStateCodec(key: string): SnapshotCodec<SaveStateRes, { slot: string; tick: number }>
+{
+    return {
+        key,
+        serialize: (v) => ({ slot: v.slot, tick: v.tick }),
+        deserialize: (data) => new SaveStateRes(data.slot, data.tick)
+    };
+}
+
+function buildSeedCodec(key: string): SnapshotCodec<SeedRes, { seed: number }>
+{
+    return {
+        key,
+        serialize: (v) => ({ seed: v.seed }),
+        deserialize: (data) => ({ seed: data.seed })
+    };
+}
+
+function cloneSnapshot(snapshot: WorldSnapshot): WorldSnapshot
+{
+    return JSON.parse(JSON.stringify(snapshot)) as WorldSnapshot;
+}
+
+function baseSnapshotWithOneEntity(): WorldSnapshot
+{
+    return {
+        format: "archetype-ecs/world-snapshot@1",
+        allocator: {
+            nextId: 2,
+            free: [],
+            generations: [[1, 1]]
+        },
+        entities: [{
+            id: 1,
+            gen: 1,
+            components: []
+        }],
+        resources: []
+    };
+}
 
 describe("World snapshot/restore", () => {
     test("persists only registered data and supports class + function tokens", () => {
@@ -168,5 +227,192 @@ describe("World snapshot/restore", () => {
 
         const destination = new World();
         expect(() => destination.restore(snapshot)).toThrow(/Missing component snapshot codec/i);
+    });
+
+    test("snapshot flushes pending commands and skips missing registered resources", () => {
+        const world = new World();
+        world.registerComponentSnapshot(Position, positionCodec);
+        world.registerResourceSnapshot(SaveStateRes, saveStateCodec);
+
+        const entity = world.spawn();
+        world.cmd().add(entity, Position, new Position(12, 34));
+
+        const snapshot = world.snapshot();
+        expect(snapshot.entities).toHaveLength(1);
+        expect(snapshot.entities[0]!.components).toEqual([{ type: "comp.position", data: { x: 12, y: 34 } }]);
+        expect(snapshot.resources).toEqual([]);
+    });
+
+    test("register/unregister component snapshots handle conflicts, rekeys, and validation", () => {
+        const world = new World();
+
+        expect(world.unregisterComponentSnapshot(Position)).toBe(false);
+        world.registerComponentSnapshot(Position, buildPositionCodec("comp.temp"));
+        expect(world.unregisterComponentSnapshot(Position)).toBe(true);
+
+        world.registerComponentSnapshot(Position, buildPositionCodec("comp.position.v1"));
+        expect(() => world.registerComponentSnapshot(Velocity, buildVelocityCodec("comp.position.v1")))
+            .toThrow(/key already used/i);
+
+        const e = world.spawn();
+        world.add(e, Position, new Position(5, 6));
+        const oldSnapshot = world.snapshot();
+
+        world.registerComponentSnapshot(Position, buildPositionCodec("comp.position.v2"));
+        expect(() => world.restore(oldSnapshot)).toThrow(/Missing component snapshot codec/i);
+
+        expect(() => world.registerComponentSnapshot(Position, buildPositionCodec("   "))).toThrow(/codec.key must be a non-empty string/i);
+    });
+
+    test("register/unregister resource snapshots handle conflicts, rekeys, and validation", () => {
+        const world = new World();
+
+        expect(world.unregisterResourceSnapshot(SaveStateRes)).toBe(false);
+        world.registerResourceSnapshot(SaveStateRes, buildSaveStateCodec("res.temp"));
+        expect(world.unregisterResourceSnapshot(SaveStateRes)).toBe(true);
+
+        world.registerResourceSnapshot(SaveStateRes, buildSaveStateCodec("res.save.v1"));
+        expect(() => world.registerResourceSnapshot(SeedResToken, buildSeedCodec("res.save.v1")))
+            .toThrow(/key already used/i);
+
+        world.setResource(SaveStateRes, new SaveStateRes("slot-z", 77));
+        const oldSnapshot = world.snapshot();
+
+        world.registerResourceSnapshot(SaveStateRes, buildSaveStateCodec("res.save.v2"));
+        expect(() => world.restore(oldSnapshot)).toThrow(/Missing resource snapshot codec/i);
+
+        expect(() => world.registerResourceSnapshot(SaveStateRes, buildSaveStateCodec("   "))).toThrow(/codec.key must be a non-empty string/i);
+    });
+
+    test("restore rejects unsupported snapshot format", () => {
+        const world = new World();
+        const snapshot = world.snapshot();
+        const invalid = cloneSnapshot(snapshot) as any;
+        invalid.format = "other-format@1";
+
+        expect(() => world.restore(invalid as WorldSnapshot)).toThrow(/Unsupported world snapshot format/i);
+    });
+
+    test("restore rejects duplicate snapshot resource types", () => {
+        const source = new World();
+        source.registerResourceSnapshot(SaveStateRes, saveStateCodec);
+        source.setResource(SaveStateRes, new SaveStateRes("slot-a", 1));
+
+        const snapshot = cloneSnapshot(source.snapshot()) as any;
+        snapshot.resources.push(snapshot.resources[0]);
+
+        const destination = new World();
+        destination.registerResourceSnapshot(SaveStateRes, saveStateCodec);
+        expect(() => destination.restore(snapshot as WorldSnapshot)).toThrow(/Duplicate snapshot resource type/i);
+    });
+
+    test("restore rejects missing resource codec", () => {
+        const source = new World();
+        source.registerResourceSnapshot(SaveStateRes, saveStateCodec);
+        source.setResource(SaveStateRes, new SaveStateRes("slot-a", 2));
+        const snapshot = source.snapshot();
+
+        const destination = new World();
+        expect(() => destination.restore(snapshot)).toThrow(/Missing resource snapshot codec/i);
+    });
+
+    test("restore rejects invalid entity id", () => {
+        const world = new World();
+        const snapshot = baseSnapshotWithOneEntity() as any;
+        snapshot.entities[0].id = 0;
+
+        expect(() => world.restore(snapshot as WorldSnapshot)).toThrow(/Invalid snapshot entity id/i);
+    });
+
+    test("restore rejects invalid entity generation", () => {
+        const world = new World();
+        const snapshot = baseSnapshotWithOneEntity() as any;
+        snapshot.entities[0].gen = 0;
+
+        expect(() => world.restore(snapshot as WorldSnapshot)).toThrow(/Invalid snapshot entity generation/i);
+    });
+
+    test("restore rejects duplicate entity ids", () => {
+        const world = new World();
+        const snapshot = baseSnapshotWithOneEntity() as any;
+        snapshot.entities.push({ id: 1, gen: 1, components: [] });
+
+        expect(() => world.restore(snapshot as WorldSnapshot)).toThrow(/Duplicate snapshot entity id/i);
+    });
+
+    test("restore rejects entity id that is both alive and free", () => {
+        const world = new World();
+        const snapshot = baseSnapshotWithOneEntity() as any;
+        snapshot.allocator.free = [1];
+
+        expect(() => world.restore(snapshot as WorldSnapshot)).toThrow(/both alive and free/i);
+    });
+
+    test("restore rejects missing allocator generation entry for an alive entity", () => {
+        const world = new World();
+        const snapshot = baseSnapshotWithOneEntity() as any;
+        snapshot.entities[0].id = 2;
+        snapshot.allocator.nextId = 3;
+        snapshot.allocator.generations = [[1, 1]];
+
+        expect(() => world.restore(snapshot as WorldSnapshot)).toThrow(/missing allocator generation entry/i);
+    });
+
+    test("restore rejects duplicate component types on a single entity", () => {
+        const world = new World();
+        world.registerComponentSnapshot(Position, positionCodec);
+
+        const snapshot = baseSnapshotWithOneEntity() as any;
+        snapshot.entities[0].components = [
+            { type: "comp.position", data: { x: 1, y: 2 } },
+            { type: "comp.position", data: { x: 3, y: 4 } }
+        ];
+
+        expect(() => world.restore(snapshot as WorldSnapshot)).toThrow(/Duplicate component type/i);
+    });
+
+    test("snapshot and restore throw while iterating", () => {
+        const world = new World();
+        const e = world.spawn();
+        world.add(e, Position, new Position(1, 2));
+
+        expect(() => {
+            world.queryEach(Position, () => {
+                world.snapshot();
+            });
+        }).toThrow(/Cannot do structural change \(snapshot\) while iterating/i);
+
+        const snap = world.snapshot();
+        expect(() => {
+            world.queryEach(Position, () => {
+                world.restore(snap);
+            });
+        }).toThrow(/Cannot do structural change \(restore\) while iterating/i);
+    });
+
+    test("snapshot tolerates sparse archetype array entries", () => {
+        const world = new World();
+        world.registerComponentSnapshot(Position, positionCodec);
+        const e = world.spawn();
+        world.add(e, Position, new Position(7, 9));
+
+        (world as any).archetypes.push(undefined);
+
+        const snapshot = world.snapshot();
+        expect(snapshot.entities[0]!.components[0]!.type).toBe("comp.position");
+    });
+
+    test("snapshot tolerates entity metadata pointing to an unknown archetype id", () => {
+        const world = new World();
+        world.registerComponentSnapshot(Position, positionCodec);
+        const e = world.spawn();
+        world.add(e, Position, new Position(10, 20));
+
+        (world as any).entities.meta[e.id].arch = 999;
+        (world as any).entities.meta[e.id].row = 0;
+
+        const snapshot = world.snapshot();
+        expect(snapshot.entities).toHaveLength(1);
+        expect(snapshot.entities[0]!.components).toEqual([]);
     });
 });
