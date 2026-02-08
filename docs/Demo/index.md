@@ -6,8 +6,8 @@ hide:
 
 # Demo
 
-Here is a small representtion example using the library.  
-The frontend were build with [Vite](https://vite.dev)
+Here is a small representation example using the library.  
+The frontend was built with [Vite](https://vite.dev)
 
 [Open demo in a new tab](./Game/index.html){ .md-button .md-button--primary }
 
