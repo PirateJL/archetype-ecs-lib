@@ -1,4 +1,4 @@
-# Tutorial 6 – Save and load
+# Tutorial 6 — Save and load
 
 Outcome: you will build a tiny save/load loop with `World.snapshot()` and `World.restore()`.
 
@@ -8,10 +8,10 @@ Outcome: you will build a tiny save/load loop with `World.snapshot()` and `World
 
 ```ts
 import {
-  World,
-  type ComponentCtor,
-  type SnapshotCodec,
-  type WorldSnapshot
+    World,
+    type ComponentCtor,
+    type SnapshotCodec,
+    type WorldSnapshot
 } from "archetype-ecs-lib";
 ```
 
@@ -21,15 +21,15 @@ import {
 
 ```ts
 class Position {
-  constructor(public x = 0, public y = 0) {}
+    constructor(public x = 0, public y = 0) {}
 }
 
 class Health {
-  constructor(public hp = 100) {}
+    constructor(public hp = 100) {}
 }
 
 class RunState {
-  constructor(public wave = 1, public score = 0) {}
+    constructor(public wave = 1, public score = 0) {}
 }
 
 type SpawnRules = { cooldown: number };
@@ -44,27 +44,27 @@ const SpawnRulesToken = (() => ({ cooldown: 1.0 })) as ComponentCtor<SpawnRules>
 const world = new World();
 
 const positionCodec: SnapshotCodec<Position, { x: number; y: number }> = {
-  key: "comp.position",
-  serialize: (v) => ({ x: v.x, y: v.y }),
-  deserialize: (d) => new Position(d.x, d.y),
+    key: "comp.position",
+    serialize: (v) => ({ x: v.x, y: v.y }),
+    deserialize: (d) => new Position(d.x, d.y),
 };
 
 const healthCodec: SnapshotCodec<Health, { hp: number }> = {
-  key: "comp.health",
-  serialize: (v) => ({ hp: v.hp }),
-  deserialize: (d) => new Health(d.hp),
+    key: "comp.health",
+    serialize: (v) => ({ hp: v.hp }),
+    deserialize: (d) => new Health(d.hp),
 };
 
 const runStateCodec: SnapshotCodec<RunState, { wave: number; score: number }> = {
-  key: "res.run-state",
-  serialize: (v) => ({ wave: v.wave, score: v.score }),
-  deserialize: (d) => new RunState(d.wave, d.score),
+    key: "res.run-state",
+    serialize: (v) => ({ wave: v.wave, score: v.score }),
+    deserialize: (d) => new RunState(d.wave, d.score),
 };
 
 const spawnRulesCodec: SnapshotCodec<SpawnRules, { cooldown: number }> = {
-  key: "res.spawn-rules",
-  serialize: (v) => ({ cooldown: v.cooldown }),
-  deserialize: (d) => ({ cooldown: d.cooldown }),
+    key: "res.spawn-rules",
+    serialize: (v) => ({ cooldown: v.cooldown }),
+    deserialize: (d) => ({ cooldown: d.cooldown }),
 };
 
 world.registerComponentSnapshot(Position, positionCodec);
@@ -133,15 +133,15 @@ const baseline = world.snapshot();
 let quickSave: WorldSnapshot | null = null;
 
 function saveNow() {
-  quickSave = world.snapshot();
+    quickSave = world.snapshot();
 }
 
 function loadNow() {
-  if (quickSave) world.restore(quickSave);
+    if (quickSave) world.restore(quickSave);
 }
 
 function resetRun() {
-  world.restore(baseline);
+    world.restore(baseline);
 }
 ```
 
