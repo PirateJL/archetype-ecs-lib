@@ -9,11 +9,11 @@ hide:
 
 # Archetype ECS Lib
 
-A tiny **archetype based ECS** (Entity Component System) for TypeScript.
+A tiny **archetype-based ECS** (Entity Component System) for TypeScript.
 
 This documentation is split into 4 parts :
 
-* **[Explanation](./Explanation/ecs-and-the-game-loop.md)** of the general operation of the library
+* **[Explanation](./Explanation/ecs-and-the-game-loop.md)** the general operation of the library
 * Find information in the **[Reference](./Reference/archetypes.md)**
 * Target a specific goal using the **[How-To Guides](./How-To%20Guides/How-to-add-remove-components-at-runtime.md)**
 * Learn through the **[Tutorials](./Tutorials/Tutorial-1—Your-first-ECS-World.md)**: step-by-step guidance
@@ -59,15 +59,6 @@ world.update(1 / 60);
 
 > Note: `SystemFn` is typed as `(world: WorldApi, dt) => void`.  
 > Checkout the [tutorials](./Tutorials/Tutorial-1—Your-first-ECS-World.md) for more!  
-
----
-
-## Save & Load docs
-
-* Explanation: [World Snapshots (Save and Load)](./Explanation/world-snapshots-save-load.md)
-* How-to: [How to save and load a World](./How-To%20Guides/How-to-save-and-load-a-world.md)
-* Reference: [Save and Load (World Snapshot) Reference](./Reference/save-and-load.md)
-* Tutorial: [Tutorial 6 - Save and load](Tutorials/Tutorial-6—Save-and-load.md)
 
 ---
 

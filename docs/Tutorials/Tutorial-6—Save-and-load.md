@@ -1,4 +1,4 @@
-# Tutorial 6 - Save and load
+# Tutorial 6 – Save and load
 
 Outcome: you will build a tiny save/load loop with `World.snapshot()` and `World.restore()`.
 
