@@ -18,7 +18,13 @@ export type Column<T = any> = T[];
 
 export type Signature = ReadonlyArray<TypeId>;
 
-export type ComponentCtor<T> = new (...args: any[]) => T;
+/**
+ * Component/resource token used as an identity key.
+ * Supports class constructors and plain function tokens.
+ */
+export type ComponentCtor<T> =
+    | (new (...args: any[]) => T)
+    | ((...args: any[]) => T);
 
 export type ComponentCtorBundleItem<T = any> = readonly [ComponentCtor<T>, T];
 
@@ -29,6 +35,45 @@ export type ComponentCtorBundleItem<T = any> = readonly [ComponentCtor<T>, T];
 export type TypeId = number;
 
 export type SystemFn = (world: WorldApi, dt: number) => void;
+
+export type SnapshotCodec<T, D = unknown> = Readonly<{
+    /**
+     * Stable key written into the snapshot payload.
+     * Keep this string stable across versions for backward compatibility.
+     */
+    key: string;
+    serialize(value: T): D;
+    deserialize(data: D): T;
+}>;
+
+export type WorldSnapshotComponent = Readonly<{
+    type: string;
+    data: unknown;
+}>;
+
+export type WorldSnapshotEntity = Readonly<{
+    id: EntityId;
+    gen: number;
+    components: ReadonlyArray<WorldSnapshotComponent>;
+}>;
+
+export type WorldSnapshotResource = Readonly<{
+    type: string;
+    data: unknown;
+}>;
+
+export type WorldSnapshotAllocator = Readonly<{
+    nextId: EntityId;
+    free: ReadonlyArray<EntityId>;
+    generations: ReadonlyArray<readonly [EntityId, number]>;
+}>;
+
+export type WorldSnapshot = Readonly<{
+    format: "archetype-ecs/world-snapshot@1";
+    allocator: WorldSnapshotAllocator;
+    entities: ReadonlyArray<WorldSnapshotEntity>;
+    resources: ReadonlyArray<WorldSnapshotResource>;
+}>;
 
 /**
  * Commands API exposed to systems.
@@ -128,6 +173,15 @@ export interface WorldApi
     addSystem(fn: SystemFn): this;
     update(dt: number): void;
     flush(): void;
+
+    //#region ----- snapshot / restore -----
+    registerComponentSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this;
+    unregisterComponentSnapshot<T>(key: ComponentCtor<T>): boolean;
+    registerResourceSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this;
+    unregisterResourceSnapshot<T>(key: ComponentCtor<T>): boolean;
+    snapshot(): WorldSnapshot;
+    restore(snapshot: WorldSnapshot): void;
+    //#endregion
 
     //#region ----- Resources lifecycle -----
     // (singletons / world globals)

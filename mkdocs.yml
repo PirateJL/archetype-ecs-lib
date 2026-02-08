@@ -95,6 +95,7 @@ plugins:
   git-revision-date-localized:
     enable_creation_date: true
     enabled: true
+    enable_parallel_processing: false
 
 extra_javascript:
   - javascript/extra.js

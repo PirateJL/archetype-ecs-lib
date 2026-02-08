@@ -4,6 +4,7 @@ import {EntityManager} from "./EntityManager";
 import {EventChannel} from "./Events";
 import {mergeSignature, signatureHasAll, signatureKey, subtractSignature} from "./Signature";
 import {typeId} from "./TypeRegistry";
+import {WorldSnapshotStore} from "./WorldSnapshotStore";
 import type {
     ComponentCtor,
     ComponentCtorBundleItem,
@@ -21,10 +22,12 @@ import type {
     QueryTable4,
     QueryTable5,
     QueryTable6,
+    SnapshotCodec,
     Signature,
     SystemFn,
     TypeId,
     WorldApi,
+    WorldSnapshot,
     WorldStats,
     WorldStatsHistory
 } from "./Types";
@@ -44,6 +47,7 @@ export class World extends StatsOverlay implements WorldApi
 
     private readonly resources = new Map<ComponentCtor<any>, any>();
     private readonly eventChannels = new Map<ComponentCtor<any>, EventChannel<any>>();
+    private readonly snapshotStore = new WorldSnapshotStore();
 
     /** @internal Phase -> systems mapping for Schedule */
     public readonly _scheduleSystems = new Map<string, SystemFn[]>();
@@ -51,10 +55,7 @@ export class World extends StatsOverlay implements WorldApi
     constructor(options?: {statsOverlayOptions: StatsOverlayOptions})
     {
         super(options?.statsOverlayOptions);
-        // Archetype 0: empty signature
-        const archetype0 = new Archetype(0, []);
-        this.archetypes[0] = archetype0;
-        this.archByKey.set("", archetype0);
+        this._resetArchetypes();
     }
 
     public statsHistory(): WorldStatsHistory
@@ -199,6 +200,41 @@ export class World extends StatsOverlay implements WorldApi
             for (const op of ops) this._apply(op);
         }
     }
+
+    //#region ---------- Snapshot / Restore ----------
+    public registerComponentSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this
+    {
+        this.snapshotStore.registerComponentSnapshot(this._snapshotRuntime(), key, codec);
+        return this;
+    }
+
+    public unregisterComponentSnapshot<T>(key: ComponentCtor<T>): boolean
+    {
+        return this.snapshotStore.unregisterComponentSnapshot(key);
+    }
+
+    public registerResourceSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this
+    {
+        this.snapshotStore.registerResourceSnapshot(this._snapshotRuntime(), key, codec);
+        return this;
+    }
+
+    public unregisterResourceSnapshot<T>(key: ComponentCtor<T>): boolean
+    {
+        return this.snapshotStore.unregisterResourceSnapshot(key);
+    }
+
+    public snapshot(): WorldSnapshot
+    {
+        return this.snapshotStore.snapshot(this._snapshotRuntime());
+    }
+
+    public restore(snapshot: WorldSnapshot): void
+    {
+        this.snapshotStore.restore(this._snapshotRuntime(), snapshot);
+        this.updateOverlay(this.stats(), this.statsHistory());
+    }
+    //#endregion
 
     //#region ---------- Resources (singletons) ----------
     public setResource<T>(key: ComponentCtor<T>, value: T): void
@@ -599,6 +635,32 @@ export class World extends StatsOverlay implements WorldApi
     //#endregion
 
     //#region ---------- Internals ----------
+    private _snapshotRuntime()
+    {
+        return {
+            ensureNotIterating: (op: string) => this._ensureNotIterating(op),
+            formatCtor: (ctor: ComponentCtor<any>) => this._formatCtor(ctor),
+            flush: () => this.flush(),
+            resetArchetypes: () => this._resetArchetypes(),
+            getOrCreateArchetype: (sig: Signature) => this._getOrCreateArchetype(sig),
+            commands: this.commands,
+            entities: this.entities,
+            archetypes: this.archetypes,
+            resources: this.resources,
+            eventChannels: this.eventChannels
+        };
+    }
+
+    private _resetArchetypes(): void
+    {
+        this.archetypes.length = 0;
+        this.archByKey.clear();
+        // Archetype 0: empty signature
+        const archetype0 = new Archetype(0, []);
+        this.archetypes[0] = archetype0;
+        this.archByKey.set("", archetype0);
+    }
+
     private static _buildQueryTypeIds(ctors: ComponentCtor<any>[]): { requested: TypeId[]; needSorted: TypeId[] }
     {
         // Preserve caller order for (c1,c2,c3,...) mapping.
