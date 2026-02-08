@@ -54,7 +54,7 @@ Create `index.html`:
 
 Create `src/main.ts`:
 
-```ts
+```ts linenums="false"
 import * as THREE from "three";
 import { World, WorldApi, Schedule, SystemFn } from "archetype-ecs-lib";
 
