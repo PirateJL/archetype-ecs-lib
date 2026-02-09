@@ -14,11 +14,17 @@ export type EntityMeta = {
     row: number;    // row in that archetype
 }
 
-export type Column<T = unknown> = T[];
+export type Column<T = any> = T[];
 
 export type Signature = ReadonlyArray<TypeId>;
 
-export type ComponentCtor<T> = new (...args: any[]) => T;
+/**
+ * Component/resource token used as an identity key.
+ * Supports class constructors and plain function tokens.
+ */
+export type ComponentCtor<T> =
+    | (new (...args: any[]) => T)
+    | ((...args: any[]) => T);
 
 export type ComponentCtorBundleItem<T = any> = readonly [ComponentCtor<T>, T];
 
@@ -29,6 +35,45 @@ export type ComponentCtorBundleItem<T = any> = readonly [ComponentCtor<T>, T];
 export type TypeId = number;
 
 export type SystemFn = (world: WorldApi, dt: number) => void;
+
+export type SnapshotCodec<T, D = unknown> = Readonly<{
+    /**
+     * Stable key written into the snapshot payload.
+     * Keep this string stable across versions for backward compatibility.
+     */
+    key: string;
+    serialize(value: T): D;
+    deserialize(data: D): T;
+}>;
+
+export type WorldSnapshotComponent = Readonly<{
+    type: string;
+    data: unknown;
+}>;
+
+export type WorldSnapshotEntity = Readonly<{
+    id: EntityId;
+    gen: number;
+    components: ReadonlyArray<WorldSnapshotComponent>;
+}>;
+
+export type WorldSnapshotResource = Readonly<{
+    type: string;
+    data: unknown;
+}>;
+
+export type WorldSnapshotAllocator = Readonly<{
+    nextId: EntityId;
+    free: ReadonlyArray<EntityId>;
+    generations: ReadonlyArray<readonly [EntityId, number]>;
+}>;
+
+export type WorldSnapshot = Readonly<{
+    format: "archetype-ecs/world-snapshot@1";
+    allocator: WorldSnapshotAllocator;
+    entities: ReadonlyArray<WorldSnapshotEntity>;
+    resources: ReadonlyArray<WorldSnapshotResource>;
+}>;
 
 /**
  * Commands API exposed to systems.
@@ -55,18 +100,88 @@ export type QueryRow4<A, B, C, D> = { e: Entity; c1: A; c2: B; c3: C; c4: D };
 export type QueryRow5<A, B, C, D, E> = { e: Entity; c1: A; c2: B; c3: C; c4: D; c5: E };
 export type QueryRow6<A, B, C, D, E, F> = { e: Entity; c1: A; c2: B; c3: C; c4: D; c5: E; c6: F };
 
+// ---- Typed query tables (SoA columns + entities) ----
+export type QueryTable1<A> = { entities: Entity[]; c1: Column<A> };
+export type QueryTable2<A, B> = { entities: Entity[]; c1: Column<A>; c2: Column<B> };
+export type QueryTable3<A, B, C> = { entities: Entity[]; c1: Column<A>; c2: Column<B>; c3: Column<C> };
+export type QueryTable4<A, B, C, D> = { entities: Entity[]; c1: Column<A>; c2: Column<B>; c3: Column<C>; c4: Column<D> };
+export type QueryTable5<A, B, C, D, E> = { entities: Entity[]; c1: Column<A>; c2: Column<B>; c3: Column<C>; c4: Column<D>; c5: Column<E> };
+export type QueryTable6<A, B, C, D, E, F> = { entities: Entity[]; c1: Column<A>; c2: Column<B>; c3: Column<C>; c4: Column<D>; c5: Column<E>; c6: Column<F> };
+
+export type WorldStats = Readonly<{
+    // --- simulation totals ---
+    aliveEntities: number;
+    archetypes: number;
+    rows: number;
+    systems: number;
+    resources: number;
+    eventChannels: number;
+    pendingCommands: boolean;
+
+    // --- profiling (last completed frame) ---
+    frame: number;
+    dt: number;             // dt passed to update/run
+    frameMs: number;        // total run/update time measured
+    phaseMs: Readonly<Record<string, number>>;
+    systemMs: Readonly<Record<string, number>>;
+}>;
+
+export type WorldStatsHistory = Readonly<{
+    /** Max frames kept in history (ring-buffer window). */
+    capacity: number;
+
+    /** How many samples are currently stored (<= capacity). */
+    size: number;
+
+    /** Rolling history for overall timing. */
+    dt: ReadonlyArray<number>;
+    frameMs: ReadonlyArray<number>;
+
+    /**
+     * Rolling history per phase/system.
+     * Arrays align with dt/frameMs indices (same `size`).
+     */
+    phaseMs: Readonly<Record<string, ReadonlyArray<number>>>;
+    systemMs: Readonly<Record<string, ReadonlyArray<number>>>;
+}>;
+
 /**
  * Public World API visible from system functions.
  * Structural typing keeps typings fast and avoids generic plumbing across the whole library.
  */
 export interface WorldApi
 {
+    // ---- Debug / tooling ----
+    stats(): WorldStats;
+    statsHistory(): WorldStatsHistory;
+
+    /** @internal Phase -> systems mapping for Schedule */
+    readonly _scheduleSystems: Map<string, SystemFn[]>;
+
+    /** @internal Returns the number of systems registered via addSystem() */
+    _getSystemCount(): number;
+
+    /** Enables/disables profiling (system/phase timing). */
+    setProfilingEnabled(enabled: boolean): void;
+
+    /** Set how many frames of the profiling history to keep (default: 120). */
+    setProfilingHistorySize(frames: number): void;
+
     // deferred ops
     cmd(): CommandsApi;
 
     addSystem(fn: SystemFn): this;
     update(dt: number): void;
     flush(): void;
+
+    //#region ----- snapshot / restore -----
+    registerComponentSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this;
+    unregisterComponentSnapshot<T>(key: ComponentCtor<T>): boolean;
+    registerResourceSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this;
+    unregisterResourceSnapshot<T>(key: ComponentCtor<T>): boolean;
+    snapshot(): WorldSnapshot;
+    restore(snapshot: WorldSnapshot): void;
+    //#endregion
 
     //#region ----- Resources lifecycle -----
     // (singletons / world globals)
@@ -160,5 +275,23 @@ export interface WorldApi
     query<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryRow5<A, B, C, D, E>>;
     query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryRow6<A, B, C, D, E, F>>;
     query(...ctors: ComponentCtor<any>[]): Iterable<any>;
+
+    // ---- Table queries (SoA columns per archetype, no per-entity allocations) ----
+    queryTables<A>(c1: ComponentCtor<A>): Iterable<QueryTable1<A>>;
+    queryTables<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryTable2<A, B>>;
+    queryTables<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryTable3<A, B, C>>;
+    queryTables<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryTable4<A, B, C, D>>;
+    queryTables<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryTable5<A, B, C, D, E>>;
+    queryTables<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryTable6<A, B, C, D, E, F>>;
+    queryTables(...ctors: ComponentCtor<any>[]): Iterable<any>;
+
+    // ---- Callback queries (no generator yield objects) ----
+    queryEach<A>(c1: ComponentCtor<A>, fn: (e: Entity, c1: A) => void): void;
+    queryEach<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, fn: (e: Entity, c1: A, c2: B) => void): void;
+    queryEach<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, fn: (e: Entity, c1: A, c2: B, c3: C) => void): void;
+    queryEach<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D) => void): void;
+    queryEach<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E) => void): void;
+    queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
+    queryEach(...args: any[]): void;
     //#endregion
 }

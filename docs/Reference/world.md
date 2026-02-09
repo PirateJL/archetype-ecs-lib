@@ -227,6 +227,46 @@ Applies all queued commands.
 
 ---
 
+## Snapshot / Restore API
+
+### `registerComponentSnapshot<T, D>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this`
+
+Registers a component serializer/deserializer for snapshots.
+
+---
+
+### `unregisterComponentSnapshot<T>(key: ComponentCtor<T>): boolean`
+
+Removes a component snapshot registration.
+
+---
+
+### `registerResourceSnapshot<T, D>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this`
+
+Registers a resource serializer/deserializer for snapshots.
+
+---
+
+### `unregisterResourceSnapshot<T>(key: ComponentCtor<T>): boolean`
+
+Removes a resource snapshot registration.
+
+---
+
+### `snapshot(): WorldSnapshot`
+
+Exports world data state (entities + registered components/resources + allocator).
+
+---
+
+### `restore(snapshot: WorldSnapshot): void`
+
+Loads snapshot data into the world.
+
+Runtime behavior (systems/schedule/events/queued commands) is not persisted.
+
+---
+
 ## System API
 
 ### `addSystem(fn: SystemFn): this`

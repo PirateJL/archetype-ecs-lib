@@ -1,9 +1,10 @@
-import { Archetype } from "./Archetype";
-import { type Command, Commands } from "./Commands";
-import { EntityManager } from "./EntityManager";
-import { EventChannel } from "./Events";
-import { mergeSignature, signatureHasAll, signatureKey, subtractSignature } from "./Signature";
-import { typeId } from "./TypeRegistry";
+import {Archetype} from "./Archetype";
+import {type Command, Commands} from "./Commands";
+import {EntityManager} from "./EntityManager";
+import {EventChannel} from "./Events";
+import {mergeSignature, signatureHasAll, signatureKey, subtractSignature} from "./Signature";
+import {typeId} from "./TypeRegistry";
+import {WorldSnapshotStore} from "./WorldSnapshotStore";
 import type {
     ComponentCtor,
     ComponentCtorBundleItem,
@@ -15,13 +16,24 @@ import type {
     QueryRow4,
     QueryRow5,
     QueryRow6,
+    QueryTable1,
+    QueryTable2,
+    QueryTable3,
+    QueryTable4,
+    QueryTable5,
+    QueryTable6,
+    SnapshotCodec,
     Signature,
     SystemFn,
     TypeId,
-    WorldApi
+    WorldApi,
+    WorldSnapshot,
+    WorldStats,
+    WorldStatsHistory
 } from "./Types";
+import { StatsOverlay, type StatsOverlayOptions } from "./stats/StatsOverlay";
 
-export class World implements WorldApi
+export class World extends StatsOverlay implements WorldApi
 {
     private readonly entities = new EntityManager();
 
@@ -35,17 +47,82 @@ export class World implements WorldApi
 
     private readonly resources = new Map<ComponentCtor<any>, any>();
     private readonly eventChannels = new Map<ComponentCtor<any>, EventChannel<any>>();
+    private readonly snapshotStore = new WorldSnapshotStore();
 
-    // Runtime warning system: track lifecycle usage to detect conflicts
-    public _hasUsedWorldUpdate = false;
-    public _hasUsedScheduleRun = false;
+    /** @internal Phase -> systems mapping for Schedule */
+    public readonly _scheduleSystems = new Map<string, SystemFn[]>();
 
-    constructor()
+    constructor(options?: {statsOverlayOptions: StatsOverlayOptions})
     {
-        // Archetype 0: empty signature
-        const archetype0 = new Archetype(0, []);
-        this.archetypes[0] = archetype0;
-        this.archByKey.set("", archetype0);
+        super(options?.statsOverlayOptions);
+        this._resetArchetypes();
+    }
+
+    public statsHistory(): WorldStatsHistory
+    {
+        const phaseMs: Record<string, ReadonlyArray<number>> = Object.create(null);
+        for (const [k, v] of this._histPhaseMs) phaseMs[k] = v;
+
+        const systemMs: Record<string, ReadonlyArray<number>> = Object.create(null);
+        for (const [k, v] of this._histSystemMs) systemMs[k] = v;
+
+        return {
+            capacity: this._historyCapacity,
+            size: this._histFrameMs.length,
+            dt: this._histDt,
+            frameMs: this._histFrameMs,
+            phaseMs,
+            systemMs
+        };
+    }
+
+    /**
+     * Rich runtime statistics (counts + last-frame timings).
+     * Note: `aliveEntities` is computed on demand (O(n) over entity meta).
+     */
+    public stats(): WorldStats
+    {
+        let alive = 0;
+        for (let id = 1; id < this.entities.meta.length; id++) {
+            const m = this.entities.meta[id];
+            if (m && m.alive) alive++;
+        }
+
+        let archCount = 0;
+        let rows = 0;
+        for (const a of this.archetypes) {
+            if (!a) continue;
+            archCount++;
+            rows += a.entities.length;
+        }
+
+        const phaseMs: Record<string, number> = Object.create(null);
+        for (const [k, v] of this._phaseMs) phaseMs[k] = v;
+
+        const systemMs: Record<string, number> = Object.create(null);
+        for (const [k, v] of this._systemMs) systemMs[k] = v;
+
+        let systemCount = this.systems.length;
+        if (this._scheduleSystems.size > 0) {
+            for (const list of this._scheduleSystems.values()) {
+                systemCount += list.length;
+            }
+        }
+
+        return {
+            aliveEntities: alive,
+            archetypes: archCount,
+            rows,
+            systems: systemCount,
+            resources: this.resources.size,
+            eventChannels: this.eventChannels.size,
+            pendingCommands: this.commands.hasPending(),
+            frame: this._frameCounter,
+            dt: this._lastDt,
+            frameMs: this._lastFrameMs,
+            phaseMs,
+            systemMs
+        };
     }
 
     /** Queue structural changes to apply safely after systems run. */
@@ -70,7 +147,7 @@ export class World implements WorldApi
      * - Rapid prototyping
      *
      * @example
-     * ```typescript
+     * ```TypeScript
      * // Simple game loop
      * function gameLoop(dt: number) {
      *   world.update(dt);
@@ -85,25 +162,39 @@ export class World implements WorldApi
     public update(dt: number): void
     {
         // Runtime conflict detection
-        if (this._hasUsedScheduleRun) {
+        if (this._scheduleSystems.size > 0) {
             this._warnAboutLifecycleConflict("World.update");
         }
-        this._hasUsedWorldUpdate = true;
+
+        const frameStart = this._profBeginFrame(dt);
 
         this._iterateDepth++;
         try {
-            for (const s of this.systems) s(this, dt);
+            for (const s of this.systems) {
+                if (this._profilingEnabled) {
+                    const t0 = performance.now();
+                    s(this, dt);
+                    const name = s.name && s.name.length > 0 ? s.name : "<anonymous>";
+                    this._profAddSystem(name, performance.now() - t0);
+                } else {
+                    s(this, dt);
+                }
+            }
         } finally {
             this._iterateDepth--;
             this.flush();
             this.swapEvents();
+            this._profAddPhase("update", this._profilingEnabled ? (performance.now() - frameStart) : 0);
+            this._profEndFrame(frameStart);
         }
+
+        this.updateOverlay(this.stats(), this.statsHistory());
     }
 
     public flush(): void
     {
         this._ensureNotIterating("flush");
-        // Apply commands until queue is empty. This allows spawn(init) to enqueue add/remove
+        // Apply commands until the queue is empty. This allows spawn(init) to enqueue add/remove
         // operations that will be applied during the same flush.
         while (true) {
             const ops = this.commands.drain();
@@ -111,6 +202,41 @@ export class World implements WorldApi
             for (const op of ops) this._apply(op);
         }
     }
+
+    //#region ---------- Snapshot / Restore ----------
+    public registerComponentSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this
+    {
+        this.snapshotStore.registerComponentSnapshot(this._snapshotRuntime(), key, codec);
+        return this;
+    }
+
+    public unregisterComponentSnapshot<T>(key: ComponentCtor<T>): boolean
+    {
+        return this.snapshotStore.unregisterComponentSnapshot(key);
+    }
+
+    public registerResourceSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this
+    {
+        this.snapshotStore.registerResourceSnapshot(this._snapshotRuntime(), key, codec);
+        return this;
+    }
+
+    public unregisterResourceSnapshot<T>(key: ComponentCtor<T>): boolean
+    {
+        return this.snapshotStore.unregisterResourceSnapshot(key);
+    }
+
+    public snapshot(): WorldSnapshot
+    {
+        return this.snapshotStore.snapshot(this._snapshotRuntime());
+    }
+
+    public restore(snapshot: WorldSnapshot): void
+    {
+        this.snapshotStore.restore(this._snapshotRuntime(), snapshot);
+        this.updateOverlay(this.stats(), this.statsHistory());
+    }
+    //#endregion
 
     //#region ---------- Resources (singletons) ----------
     public setResource<T>(key: ComponentCtor<T>, value: T): void
@@ -197,6 +323,7 @@ export class World implements WorldApi
     //#region ---------- Entity lifecycle ----------
     public spawn(): Entity
     {
+        this._ensureNotIterating("spawn");
         const entity = this.entities.create();
         // place in archetype 0
         const archetype0 = this.archetypes[0]!;
@@ -401,19 +528,7 @@ export class World implements WorldApi
     public query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryRow6<A, B, C, D, E, F>>;
     public query(...ctors: ComponentCtor<any>[]): Iterable<any>
     {
-        // Preserve caller order for (c1,c2,c3,...) mapping.
-        const requested: TypeId[] = new Array(ctors.length);
-        for (let i = 0; i < ctors.length; i++) requested[i] = typeId(ctors[i]!);
-
-        // Same ids, but sorted + deduped for signatureHasAll().
-        const needSorted: TypeId[] = requested.slice();
-        needSorted.sort((a, b) => a - b);
-        let w = 0;
-        for (let i = 0; i < needSorted.length; i++) {
-            const v = needSorted[i]!;
-            if (i === 0 || v !== needSorted[w - 1]) needSorted[w++] = v;
-        }
-        needSorted.length = w;
+        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
 
         function* gen(world: World): IterableIterator<any>
         {
@@ -441,9 +556,134 @@ export class World implements WorldApi
 
         return gen(this);
     }
+
+    /**
+     * Table query: yields one item per matching archetype (SoA columns + entity array).
+     * This avoids allocating one object per entity row.
+     */
+    public queryTables<A>(c1: ComponentCtor<A>): Iterable<QueryTable1<A>>;
+    public queryTables<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryTable2<A, B>>;
+    public queryTables<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryTable3<A, B, C>>;
+    public queryTables<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryTable4<A, B, C, D>>;
+    public queryTables<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryTable5<A, B, C, D, E>>;
+    public queryTables<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryTable6<A, B, C, D, E, F>>;
+    public queryTables(...ctors: ComponentCtor<any>[]): Iterable<any>
+    {
+        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
+
+        function* gen(world: World): IterableIterator<any>
+        {
+            world._iterateDepth++;
+            try {
+                for (const a of world.archetypes) {
+                    if (!a) continue;
+                    if (!signatureHasAll(a.sig, needSorted)) continue;
+
+                    const out: any = { entities: a.entities };
+                    for (let i = 0; i < requested.length; i++) {
+                        out[`c${i + 1}`] = a.column<any>(requested[i]!);
+                    }
+                    yield out;
+                }
+            } finally {
+                world._iterateDepth--;
+            }
+        }
+
+        return gen(this);
+    }
+
+    /**
+     * Callback query: calls `fn` for each matching entity row (no yield object allocations).
+     */
+    public queryEach<A>(c1: ComponentCtor<A>, fn: (e: Entity, c1: A) => void): void;
+    public queryEach<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, fn: (e: Entity, c1: A, c2: B) => void): void;
+    public queryEach<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, fn: (e: Entity, c1: A, c2: B, c3: C) => void): void;
+    public queryEach<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D) => void): void;
+    public queryEach<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E) => void): void;
+    public queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
+    public queryEach(...args: any[]): void
+    {
+        const fn = args[args.length - 1] as (...params: unknown[]) => void;
+        const ctors = args.slice(0, args.length - 1) as ComponentCtor<any>[];
+
+        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
+
+        this._iterateDepth++;
+        try {
+            for (const a of this.archetypes) {
+                if (!a) continue;
+                if (!signatureHasAll(a.sig, needSorted)) continue;
+
+                const cols = new Array<any[]>(requested.length);
+                for (let i = 0; i < requested.length; i++) cols[i] = a.column<any>(requested[i]!);
+
+                for (let row = 0; row < a.entities.length; row++) {
+                    const e = a.entities[row]!;
+                    switch (cols.length) {
+                        case 1: fn(e, cols[0]![row]); break;
+                        case 2: fn(e, cols[0]![row], cols[1]![row]); break;
+                        case 3: fn(e, cols[0]![row], cols[1]![row], cols[2]![row]); break;
+                        case 4: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row]); break;
+                        case 5: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row], cols[4]![row]); break;
+                        case 6: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row], cols[4]![row], cols[5]![row]); break;
+                        default: fn(e, ...cols.map(c => c[row])); break;
+                    }
+                }
+            }
+        } finally {
+            this._iterateDepth--;
+        }
+    }
     //#endregion
 
     //#region ---------- Internals ----------
+    private _snapshotRuntime()
+    {
+        return {
+            ensureNotIterating: (op: string) => this._ensureNotIterating(op),
+            formatCtor: (ctor: ComponentCtor<any>) => this._formatCtor(ctor),
+            flush: () => this.flush(),
+            resetArchetypes: () => this._resetArchetypes(),
+            getOrCreateArchetype: (sig: Signature) => this._getOrCreateArchetype(sig),
+            commands: this.commands,
+            entities: this.entities,
+            archetypes: this.archetypes,
+            resources: this.resources,
+            eventChannels: this.eventChannels
+        };
+    }
+
+    private _resetArchetypes(): void
+    {
+        this.archetypes.length = 0;
+        this.archByKey.clear();
+        // Archetype 0: empty signature
+        const archetype0 = new Archetype(0, []);
+        this.archetypes[0] = archetype0;
+        this.archByKey.set("", archetype0);
+    }
+
+    private static _buildQueryTypeIds(ctors: ComponentCtor<any>[]): { requested: TypeId[]; needSorted: TypeId[] }
+    {
+        // Preserve caller order for (c1,c2,c3,...) mapping.
+        const requested: TypeId[] = new Array(ctors.length);
+        for (let i = 0; i < ctors.length; i++) requested[i] = typeId(ctors[i]!);
+
+        // Same ids, but sorted + deduped for signatureHasAll().
+        const needSorted: TypeId[] = requested.slice();
+        needSorted.sort((a, b) => a - b);
+
+        let w = 0;
+        for (let i = 0; i < needSorted.length; i++) {
+            const v = needSorted[i]!;
+            if (i === 0 || v !== needSorted[w - 1]) needSorted[w++] = v;
+        }
+        needSorted.length = w;
+
+        return { requested, needSorted };
+    }
+
     private _ensureNotIterating(op: string): void
     {
         if (this._iterateDepth > 0) {
@@ -556,19 +796,30 @@ export class World implements WorldApi
      */
     public _warnAboutLifecycleConflict(method: "World.update" | "Schedule.run"): void
     {
-        const otherMethod = method === "World.update" ? "Schedule.run" : "World.update";
+        const hint = method === "World.update"
+            ? `You have systems registered via schedule.add() but are calling world.update().`
+            : `You have systems registered via world.addSystem() but are calling schedule.run().`;
+
         throw new Error(
             `⚠️  ECS Lifecycle Conflict Detected!\n` +
-            `You are using both ${method} and ${otherMethod} on the same World instance.\n` +
+            `${hint}\n` +
             `This can cause:\n` +
             `- Double command flushes\n` +
             `- Confusing event visibility\n` +
             `- Unclear lifecycle semantics\n\n` +
             `Recommended fix:\n` +
-            `[- Use World.update() for simple single-phase applications\n](cci:1://file:///home/jdu/Workplace/archetype-ecs-lib/src/ecs/World.ts:59:4-76:5)` +
-            `[- Use Schedule.run() for multi-phase applications with explicit control\n\n](cci:1://file:///home/jdu/Workplace/archetype-ecs-lib/src/ecs/Schedule.ts:21:4-57:5)` +
+            `- Use World.update() for simple single-phase applications (with world.addSystem())\n` +
+            `- Use Schedule.run() for multi-phase applications (with schedule.add())\n\n` +
             `Choose ONE approach and stick with it.`
         );
+    }
+
+    /**
+     * @internal Returns the number of systems registered via addSystem()
+     */
+    public _getSystemCount(): number
+    {
+        return this.systems.length;
     }
     //#endregion
 }

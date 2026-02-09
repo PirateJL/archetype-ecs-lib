@@ -123,7 +123,7 @@ That’s the only “required” setup. Everything else assumes these exist.
 
 ## 2) Wire DOM events into `InputStateRes`
 
-Attach listeners once:
+Attach listeners at once:
 
 ```ts
 export function attachInput(world: WorldApi): void
@@ -208,9 +208,9 @@ export function renderSpritesSystem(ctx: CanvasRenderingContext2D)
 Minimal schedule:
 
 ```ts
-sched.add("beginFrame", beginFrameSystem);
-sched.add("update", playerMoveSystem);
-sched.add("render", renderSpritesSystem(ctx));
+sched.add(world, "beginFrame", beginFrameSystem);
+sched.add(world, "update", playerMoveSystem);
+sched.add(world, "render", renderSpritesSystem(ctx));
 ```
 
 Game loop:

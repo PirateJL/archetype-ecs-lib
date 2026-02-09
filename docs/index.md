@@ -9,11 +9,11 @@ hide:
 
 # Archetype ECS Lib
 
-A tiny **archetype based ECS** (Entity Component System) for TypeScript.
+A tiny **archetype-based ECS** (Entity Component System) for TypeScript.
 
 This documentation is split into 4 parts :
 
-* **[Explanation](./Explanation/ecs-and-the-game-loop.md)** of the general operation of the library
+* **[Explanation](./Explanation/ecs-and-the-game-loop.md)** the general operation of the library
 * Find information in the **[Reference](./Reference/archetypes.md)**
 * Target a specific goal using the **[How-To Guides](./How-To%20Guides/How-to-add-remove-components-at-runtime.md)**
 * Learn through the **[Tutorials](./Tutorials/Tutorial-1—Your-first-ECS-World.md)**: step-by-step guidance
