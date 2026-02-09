@@ -104,7 +104,9 @@ export class World extends StatsOverlay implements WorldApi
 
         let systemCount = this.systems.length;
         if (this._scheduleSystems.size > 0) {
-            systemCount += this._scheduleSystems.size;
+            for (const list of this._scheduleSystems.values()) {
+                systemCount += list.length;
+            }
         }
 
         return {
