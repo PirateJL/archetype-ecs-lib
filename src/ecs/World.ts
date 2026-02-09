@@ -323,6 +323,7 @@ export class World extends StatsOverlay implements WorldApi
     //#region ---------- Entity lifecycle ----------
     public spawn(): Entity
     {
+        this._ensureNotIterating("spawn");
         const entity = this.entities.create();
         // place in archetype 0
         const archetype0 = this.archetypes[0]!;

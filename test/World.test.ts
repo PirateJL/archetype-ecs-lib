@@ -141,6 +141,30 @@ describe("World", () => {
         expect(w.get(e, Position)).toMatchObject({ x: 7, y: 8 });
     });
 
+    test("spawn is forbidden during query iteration", () => {
+        const w = new World();
+        const e = w.spawn();
+        w.add(e, Position, new Position(1, 2));
+
+        expect(() => {
+            w.queryEach(Position, () => {
+                w.spawn();
+            });
+        }).toThrow(/Cannot do structural change \(spawn\)/i);
+    });
+
+    test("spawnMany is forbidden during query iteration", () => {
+        const w = new World();
+        const e = w.spawn();
+        w.add(e, Position, new Position(1, 2));
+
+        expect(() => {
+            w.queryEach(Position, () => {
+                w.spawnMany([Velocity, new Velocity()]);
+            });
+        }).toThrow(/Cannot do structural change \(spawn\)/i);
+    });
+
     test("update() flushes queued commands even if a system throws", () => {
         const w = new World();
         const e = w.spawn();
