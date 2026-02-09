@@ -253,6 +253,12 @@ export class WorldSnapshotStore
                     `Ensure snapshot.allocator.generations includes all alive ids.`
                 );
             }
+            if (meta.gen !== entity.gen) {
+                throw new Error(
+                    `Invalid snapshot: allocator generation mismatch for entity id ${entity.id}. ` +
+                    `Expected gen ${meta.gen}, got ${entity.gen}.`
+                );
+            }
 
             const componentValues = new Map<TypeId, any>();
             const seenComponentTypes = new Set<string>();
@@ -276,7 +282,6 @@ export class WorldSnapshotStore
             for (const t of sig) a.column<any>(t).push(componentValues.get(t));
 
             meta.alive = true;
-            meta.gen = entity.gen;
             meta.arch = a.id;
             meta.row = row;
         }
