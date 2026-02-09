@@ -397,7 +397,12 @@ export class StatsOverlay
         this.canvas.style.height = `${height}px`;
 
         // Reset transform so repeated resizes don't accumulate scale.
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        const ctxAny = this.ctx as any;
+        if (typeof ctxAny.setTransform === "function") {
+            ctxAny.setTransform(1, 0, 0, 1, 0, 0);
+        } else if (typeof ctxAny.resetTransform === "function") {
+            ctxAny.resetTransform();
+        }
         this.ctx.scale(dpr, dpr);
     }
 
