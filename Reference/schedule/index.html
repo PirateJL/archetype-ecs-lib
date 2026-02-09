@@ -11,7 +11,7 @@
       
       
       
-        <link rel="prev" href="../resources/">
+        <link rel="prev" href="../save-and-load/">
       
       
         <link rel="next" href="../systems/">
@@ -276,7 +276,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../Explanation/ecs-and-the-game-loop/" class="md-tabs__link">
+        <a href="../../Explanation/Understanding-ECS-Debugging-%26-Profiling/" class="md-tabs__link">
           
   
   
@@ -298,7 +298,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../How-To%20Guides/How-to-add-InputState-%2B-AssetCache-as-Resources-and-use-them-in-systems/" class="md-tabs__link">
+        <a href="../../How-To%20Guides/How-to-Debug-Your-ECS-Application/" class="md-tabs__link">
           
   
   
@@ -344,7 +344,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../Tutorials/Tutorial-1%E2%80%94Your-first-ECS-World/" class="md-tabs__link">
+        <a href="../../Tutorials/Debugging-Your-First-ECS-Application/" class="md-tabs__link">
           
   
   
@@ -518,6 +518,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -560,6 +564,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Explanation/Understanding-ECS-Debugging-%26-Profiling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Understanding ECS Debugging &amp; Profiling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -729,6 +761,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Explanation/world-snapshots-save-load/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    World Snapshots (Save and Load)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -744,6 +804,10 @@
   
     
     
+      
+        
+      
+        
       
         
       
@@ -805,6 +869,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../How-To%20Guides/How-to-Debug-Your-ECS-Application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How to Debug Your ECS Application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -981,6 +1073,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../How-To%20Guides/How-to-save-and-load-a-world/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How to save and load a World
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../How-To%20Guides/How-to-split-logic-into-multiple-system-phases/" class="md-nav__link">
         
   
@@ -1075,6 +1195,10 @@
   
     
     
+      
+        
+      
+        
       
         
       
@@ -1235,6 +1359,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../debugging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging &amp; Profiling Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../entity/" class="md-nav__link">
         
   
@@ -1372,6 +1524,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../save-and-load/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Save and Load (World Snapshot) Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -1469,10 +1649,105 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#addphase-string-fn-systemfn-this" class="md-nav__link">
+  <a href="#addworld-worldapi-phase-string-fn-systemfn-after-before" class="md-nav__link">
     <span class="md-ellipsis">
       
-        add(phase: string, fn: SystemFn): this
+        add(world: WorldApi, phase: string, fn: SystemFn): { after, before }
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-ordering-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase ordering constraints
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase ordering constraints">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#afterotherphase-string-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        after(otherPhase: string): this
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#beforeotherphase-string-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        before(otherPhase: string): this
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#selecting-a-phase-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selecting a phase order
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Selecting a phase order">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setorderphases-string-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        setOrder(phases: string[]): this
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-boundary-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase boundary behavior
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase boundary behavior">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setboundarymodemode-auto-manual-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        setBoundaryMode(mode: "auto" | "manual"): this
       
     </span>
   </a>
@@ -1497,10 +1772,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#runworld-worldlike-dt-number-phases-string-void" class="md-nav__link">
+  <a href="#runworld-worldapi-dt-number-phaseorder-string-void" class="md-nav__link">
     <span class="md-ellipsis">
       
-        run(world: WorldLike, dt: number, phases: string[]): void
+        run(world: WorldApi, dt: number, phaseOrder?: string[]): void
       
     </span>
   </a>
@@ -1513,13 +1788,30 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#flush-semantics" class="md-nav__link">
+  <a href="#errors-and-lifecycle-notes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Flush semantics
+        Errors and lifecycle notes
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Errors and lifecycle notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lifecycle-conflict-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle conflict detection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1625,6 +1917,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1667,6 +1963,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Tutorials/Debugging-Your-First-ECS-Application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging Your First ECS Application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1808,6 +2132,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Tutorials/Tutorial-6%E2%80%94Save-and-load/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial 6 — Save and load
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1876,10 +2228,105 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#addphase-string-fn-systemfn-this" class="md-nav__link">
+  <a href="#addworld-worldapi-phase-string-fn-systemfn-after-before" class="md-nav__link">
     <span class="md-ellipsis">
       
-        add(phase: string, fn: SystemFn): this
+        add(world: WorldApi, phase: string, fn: SystemFn): { after, before }
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-ordering-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase ordering constraints
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase ordering constraints">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#afterotherphase-string-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        after(otherPhase: string): this
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#beforeotherphase-string-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        before(otherPhase: string): this
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#selecting-a-phase-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selecting a phase order
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Selecting a phase order">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setorderphases-string-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        setOrder(phases: string[]): this
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-boundary-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase boundary behavior
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase boundary behavior">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setboundarymodemode-auto-manual-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        setBoundaryMode(mode: "auto" | "manual"): this
       
     </span>
   </a>
@@ -1904,10 +2351,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#runworld-worldlike-dt-number-phases-string-void" class="md-nav__link">
+  <a href="#runworld-worldapi-dt-number-phaseorder-string-void" class="md-nav__link">
     <span class="md-ellipsis">
       
-        run(world: WorldLike, dt: number, phases: string[]): void
+        run(world: WorldApi, dt: number, phaseOrder?: string[]): void
       
     </span>
   </a>
@@ -1920,13 +2367,30 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#flush-semantics" class="md-nav__link">
+  <a href="#errors-and-lifecycle-notes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Flush semantics
+        Errors and lifecycle notes
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Errors and lifecycle notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lifecycle-conflict-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle conflict detection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1971,50 +2435,214 @@
 
 <h1 id="schedule">Schedule<a class="headerlink" href="#schedule" title="Permanent link">&para;</a></h1>
 <h2 id="purpose">Purpose<a class="headerlink" href="#purpose" title="Permanent link">&para;</a></h2>
-<p><code>Schedule</code> is a <strong>phase runner</strong>: it groups systems under named phases, then runs those phases in a chosen order, calling <code>world.flush()</code> <strong>between phases</strong> to apply deferred structural commands deterministically. </p>
+<p><code>Schedule</code> is a <strong>multiphase runner</strong>.</p>
+<p>It groups system functions under <strong>named phases</strong> (e.g. <code>"input"</code>, <code>"update"</code>, <code>"render"</code>), then executes those phases in a chosen order. At <strong>phase boundaries</strong>, it can automatically:</p>
+<ul>
+<li>flush deferred structural commands (<code>world.flush()</code>, only if commands are pending)</li>
+<li>deliver events to the next phase (<code>world.swapEvents()</code>)</li>
+</ul>
+<p>This lets you build a deterministic pipeline (input → simulation → rendering → audio, etc.) without running into "structural change during iteration" problems.</p>
 <hr />
 <h2 id="construction">Construction<a class="headerlink" href="#construction" title="Permanent link">&para;</a></h2>
-<div class="language-ts highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-1"><a id="__span-0-1" name="__span-0-1"></a><span class="kd">const</span><span class="w"> </span><span class="nx">sched</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">Schedule</span><span class="p">();</span>
+<div class="language-text highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-1"><a id="__span-0-1" name="__span-0-1"></a>ts
+</span><span id="__span-0-2"><a id="__span-0-2" name="__span-0-2"></a>const schedule = new Schedule();
 </span></code></pre></div></td></tr></table></div>
-<p><code>Schedule</code> is independent from <code>World</code>; you pass the <code>World</code> (or compatible object) at run time. </p>
+<p>A <code>Schedule</code> is independent from <code>World</code>, you pass the <code>world</code> at run time.</p>
 <hr />
 <h2 id="adding-systems-to-phases">Adding systems to phases<a class="headerlink" href="#adding-systems-to-phases" title="Permanent link">&para;</a></h2>
-<h3 id="addphase-string-fn-systemfn-this"><code>add(phase: string, fn: SystemFn): this</code><a class="headerlink" href="#addphase-string-fn-systemfn-this" title="Permanent link">&para;</a></h3>
-<p>Registers a system function under a phase name.</p>
+<h3 id="addworld-worldapi-phase-string-fn-systemfn-after-before"><code>add(world: WorldApi, phase: string, fn: SystemFn): { after, before }</code><a class="headerlink" href="#addworld-worldapi-phase-string-fn-systemfn-after-before" title="Permanent link">&para;</a></h3>
+<p>Registers <code>fn</code> under <code>phase</code> for the given <code>world</code>.</p>
 <ul>
-<li>You can register multiple systems under the same phase. </li>
+<li>You can register multiple systems under the same phase (they run in insertion order).</li>
+<li>Returns an object with <code>after()</code> and <code>before()</code> methods for chaining phase constraints.</li>
 </ul>
-<p>Example:</p>
-<div class="language-ts highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<p>Example:
+<div class="language-text highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
 <span class="normal">2</span>
 <span class="normal">3</span>
-<span class="normal">4</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-1-1"><a id="__span-1-1" name="__span-1-1"></a><span class="nx">sched</span>
-</span><span id="__span-1-2"><a id="__span-1-2" name="__span-1-2"></a><span class="w">  </span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="s2">&quot;input&quot;</span><span class="p">,</span><span class="w">  </span><span class="p">(</span><span class="nx">w</span><span class="o">:</span><span class="w"> </span><span class="kt">any</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* ... */</span><span class="w"> </span><span class="p">})</span>
-</span><span id="__span-1-3"><a id="__span-1-3" name="__span-1-3"></a><span class="w">  </span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="s2">&quot;sim&quot;</span><span class="p">,</span><span class="w">    </span><span class="p">(</span><span class="nx">w</span><span class="o">:</span><span class="w"> </span><span class="kt">any</span><span class="p">,</span><span class="w"> </span><span class="nx">dt</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* ... */</span><span class="w"> </span><span class="p">})</span>
-</span><span id="__span-1-4"><a id="__span-1-4" name="__span-1-4"></a><span class="w">  </span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="s2">&quot;render&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">w</span><span class="o">:</span><span class="w"> </span><span class="kt">any</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* ... */</span><span class="w"> </span><span class="p">});</span>
+<span class="normal">4</span>
+<span class="normal">5</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-1-1"><a id="__span-1-1" name="__span-1-1"></a>ts
+</span><span id="__span-1-2"><a id="__span-1-2" name="__span-1-2"></a>schedule
+</span><span id="__span-1-3"><a id="__span-1-3" name="__span-1-3"></a>    .add(world, &quot;input&quot;, inputSystem)
+</span><span id="__span-1-4"><a id="__span-1-4" name="__span-1-4"></a>    .add(world, &quot;update&quot;, updateSystem)
+</span><span id="__span-1-5"><a id="__span-1-5" name="__span-1-5"></a>    .add(world, &quot;render&quot;, renderSystem);
+</span></code></pre></div></td></tr></table></div></p>
+<hr />
+<h2 id="phase-ordering-constraints">Phase ordering constraints<a class="headerlink" href="#phase-ordering-constraints" title="Permanent link">&para;</a></h2>
+<p>Constraints are <strong>phase-level</strong> (not system-level): they affect the relative order of phases, not the order of systems within a phase.</p>
+<h3 id="afterotherphase-string-this"><code>after(otherPhase: string): this</code><a class="headerlink" href="#afterotherphase-string-this" title="Permanent link">&para;</a></h3>
+<p>Constrain the <strong>most recently added phase</strong> to run after <code>otherPhase</code>.</p>
+<div class="language-text highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-2-1"><a id="__span-2-1" name="__span-2-1"></a>ts
+</span><span id="__span-2-2"><a id="__span-2-2" name="__span-2-2"></a>schedule.add(world, &quot;sim&quot;, simSystem).after(&quot;input&quot;); // input -&gt; sim
 </span></code></pre></div></td></tr></table></div>
+<p>You can chain multiple constraints:
+<div class="language-text highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-3-1"><a id="__span-3-1" name="__span-3-1"></a>ts
+</span><span id="__span-3-2"><a id="__span-3-2" name="__span-3-2"></a>schedule.add(world, &quot;sim&quot;, simSystem).after(&quot;beginFrame&quot;).after(&quot;input&quot;);
+</span></code></pre></div></td></tr></table></div></p>
+<blockquote>
+<p><code>after()</code> must be called after <code>add(...)</code>. Calling it before any <code>add(...)</code> throws an error.</p>
+</blockquote>
+<h3 id="beforeotherphase-string-this"><code>before(otherPhase: string): this</code><a class="headerlink" href="#beforeotherphase-string-this" title="Permanent link">&para;</a></h3>
+<p>Constrain the <strong>most recently added phase</strong> to run before <code>otherPhase</code>.</p>
+<div class="language-text highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-4-1"><a id="__span-4-1" name="__span-4-1"></a>ts
+</span><span id="__span-4-2"><a id="__span-4-2" name="__span-4-2"></a>schedule.add(world, &quot;input&quot;, inputSystem).before(&quot;sim&quot;); // input -&gt; sim
+</span></code></pre></div></td></tr></table></div>
+<blockquote>
+<p><code>before()</code> must be called after <code>add(...)</code>. Calling it before any <code>add(...)</code> throws an error.</p>
+</blockquote>
+<hr />
+<h2 id="selecting-a-phase-order">Selecting a phase order<a class="headerlink" href="#selecting-a-phase-order" title="Permanent link">&para;</a></h2>
+<p><code>Schedule.run()</code> chooses a phase order using the following precedence:</p>
+<ol>
+<li>If <code>run(..., phaseOrder)</code> is provided, it is used as-is.</li>
+<li>Else, if <code>setOrder([...])</code> was called, the stored order is used.</li>
+<li>Else, an order is computed from <code>.after()</code>/<code>.before()</code> constraints (stable topological sort).</li>
+</ol>
+<h3 id="setorderphases-string-this"><code>setOrder(phases: string[]): this</code><a class="headerlink" href="#setorderphases-string-this" title="Permanent link">&para;</a></h3>
+<p>Set a default phase order used by <code>run(world, dt)</code> when no <code>phaseOrder</code> is passed.</p>
+<div class="language-text highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-5-1"><a id="__span-5-1" name="__span-5-1"></a>ts
+</span><span id="__span-5-2"><a id="__span-5-2" name="__span-5-2"></a>schedule.setOrder([&quot;input&quot;, &quot;sim&quot;, &quot;render&quot;]);
+</span></code></pre></div></td></tr></table></div>
+<hr />
+<h2 id="phase-boundary-behavior">Phase boundary behavior<a class="headerlink" href="#phase-boundary-behavior" title="Permanent link">&para;</a></h2>
+<h3 id="setboundarymodemode-auto-manual-this"><code>setBoundaryMode(mode: "auto" | "manual"): this</code><a class="headerlink" href="#setboundarymodemode-auto-manual-this" title="Permanent link">&para;</a></h3>
+<p>Controls what happens after each phase:</p>
+<ul>
+<li><code>"auto"</code> (default):<ul>
+<li>if <code>world.cmd().hasPending()</code> → <code>world.flush()</code></li>
+<li>always <code>world.swapEvents()</code></li>
+</ul>
+</li>
+<li><code>"manual"</code>:<ul>
+<li>do nothing automatically; the caller is responsible for <code>world.flush()</code> / <code>world.swapEvents()</code>
+<div class="language-text highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-6-1"><a id="__span-6-1" name="__span-6-1"></a>ts
+</span><span id="__span-6-2"><a id="__span-6-2" name="__span-6-2"></a>schedule.setBoundaryMode(&quot;auto&quot;); // default
+</span><span id="__span-6-3"><a id="__span-6-3" name="__span-6-3"></a>schedule.setBoundaryMode(&quot;manual&quot;); // advanced usage
+</span></code></pre></div></td></tr></table></div></li>
+</ul>
+</li>
+</ul>
 <hr />
 <h2 id="running-phases">Running phases<a class="headerlink" href="#running-phases" title="Permanent link">&para;</a></h2>
-<h3 id="runworld-worldlike-dt-number-phases-string-void"><code>run(world: WorldLike, dt: number, phases: string[]): void</code><a class="headerlink" href="#runworld-worldlike-dt-number-phases-string-void" title="Permanent link">&para;</a></h3>
+<h3 id="runworld-worldapi-dt-number-phaseorder-string-void"><code>run(world: WorldApi, dt: number, phaseOrder?: string[]): void</code><a class="headerlink" href="#runworld-worldapi-dt-number-phaseorder-string-void" title="Permanent link">&para;</a></h3>
 <p>Runs the schedule for a single tick:</p>
 <ul>
-<li>Executes phases <strong>in the exact order</strong> provided by <code>phases</code>.</li>
-<li>Calls <code>world.flush()</code> <strong>after each phase</strong> (phase barrier). </li>
+<li>Executes phases in the chosen order.</li>
+<li>Executes all systems registered under each phase.</li>
+<li>Applies phase boundary behavior according to <code>setBoundaryMode()</code>.</li>
 </ul>
-<p>Example:</p>
-<div class="language-ts highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
-<span class="normal">2</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-2-1"><a id="__span-2-1" name="__span-2-1"></a><span class="kd">const</span><span class="w"> </span><span class="nx">phases</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;sim&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;render&quot;</span><span class="p">];</span>
-</span><span id="__span-2-2"><a id="__span-2-2" name="__span-2-2"></a><span class="nx">sched</span><span class="p">.</span><span class="nx">run</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span><span class="w"> </span><span class="mf">1</span><span class="o">/</span><span class="mf">60</span><span class="p">,</span><span class="w"> </span><span class="nx">phases</span><span class="p">);</span>
-</span></code></pre></div></td></tr></table></div>
+<p>Example (explicit order):
+<div class="language-text highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-7-1"><a id="__span-7-1" name="__span-7-1"></a>ts
+</span><span id="__span-7-2"><a id="__span-7-2" name="__span-7-2"></a>schedule.run(world, 1/60, [&quot;input&quot;, &quot;sim&quot;, &quot;render&quot;]);
+</span></code></pre></div></td></tr></table></div></p>
+<p>Example (computed order from constraints):
+<div class="language-text highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span>
+<span class="normal">6</span>
+<span class="normal">7</span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-8-1"><a id="__span-8-1" name="__span-8-1"></a>ts
+</span><span id="__span-8-2"><a id="__span-8-2" name="__span-8-2"></a>schedule
+</span><span id="__span-8-3"><a id="__span-8-3" name="__span-8-3"></a>    .add(world, &quot;input&quot;, inputSystem)
+</span><span id="__span-8-4"><a id="__span-8-4" name="__span-8-4"></a>    .add(world, &quot;sim&quot;, simSystem).after(&quot;input&quot;)
+</span><span id="__span-8-5"><a id="__span-8-5" name="__span-8-5"></a>    .add(world, &quot;render&quot;, renderSystem).after(&quot;sim&quot;);
+</span><span id="__span-8-6"><a id="__span-8-6" name="__span-8-6"></a>
+</span><span id="__span-8-7"><a id="__span-8-7" name="__span-8-7"></a>schedule.run(world, 1 / 60);
+</span></code></pre></div></td></tr></table></div></p>
 <hr />
-<h2 id="flush-semantics">Flush semantics<a class="headerlink" href="#flush-semantics" title="Permanent link">&para;</a></h2>
-<p><code>Schedule</code> relies on <code>world.flush()</code> to apply deferred structural changes queued via commands, enabling safe structural edits while systems and queries run. </p>
+<h2 id="errors-and-lifecycle-notes">Errors and lifecycle notes<a class="headerlink" href="#errors-and-lifecycle-notes" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>System errors</strong>: If a system throws, <code>Schedule</code> rethrows a wrapped error with context:<ul>
+<li><code>"[phase=&lt;phase&gt; system=&lt;name&gt;] &lt;message&gt;"</code></li>
+</ul>
+</li>
+<li><strong>Cyclic constraints</strong>: If constraints contain a cycle and no explicit order is provided, <code>run()</code> throws.</li>
+<li><strong>No phase order</strong>: If no phase order can be determined (no explicit order, no stored order, and nothing scheduled), <code>run()</code> throws:<ul>
+<li><code>Schedule.run requires a phase order (pass it as an argument or call schedule.setOrder([...]))</code></li>
+</ul>
+</li>
+</ul>
+<h3 id="lifecycle-conflict-detection">Lifecycle conflict detection<a class="headerlink" href="#lifecycle-conflict-detection" title="Permanent link">&para;</a></h3>
+<p><code>Schedule.run()</code> and <code>World.update()</code> are <strong>mutually exclusive</strong> on the same <code>World</code> instance:</p>
+<ul>
+<li>If you register systems via <code>world.addSystem()</code> and then call <code>schedule.run()</code>, an error is thrown.</li>
+<li>If you register systems via <code>schedule.add()</code> and then call <code>world.update()</code>, an error is thrown.</li>
+</ul>
+<p>This prevents confusing behavior from mixing two different system execution models in the same world.</p>
+<p><strong>Choose ONE approach:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Register systems with</th>
+<th>Run with</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Simple (single-phase)</td>
+<td><code>world.addSystem(fn)</code></td>
+<td><code>world.update(dt)</code></td>
+</tr>
+<tr>
+<td>Multi-phase</td>
+<td><code>schedule.add(world, phase, fn)</code></td>
+<td><code>schedule.run(world, dt, phases)</code></td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2 id="relationship-to-worldupdatedt">Relationship to <code>World.update(dt)</code><a class="headerlink" href="#relationship-to-worldupdatedt" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>world.update(dt)</code> runs the world’s own registered systems and flushes at the end. </li>
-<li><code>Schedule</code> is used when you want <strong>explicit phase ordering</strong> and <strong>flush points between groups of systems</strong> rather than only at frame end. </li>
-</ul>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th><code>World.update(dt)</code></th>
+<th><code>Schedule.run(world, dt, phases)</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>System registration</td>
+<td><code>world.addSystem(fn)</code></td>
+<td><code>schedule.add(world, phase, fn)</code></td>
+</tr>
+<tr>
+<td>Phase support</td>
+<td>Single implicit phase</td>
+<td>Multiple named phases</td>
+</tr>
+<tr>
+<td>Phase ordering</td>
+<td>N/A</td>
+<td>Via <code>after()</code>/<code>before()</code> or explicit order</td>
+</tr>
+<tr>
+<td>Command flush</td>
+<td>Once at end</td>
+<td>After each phase (if pending)</td>
+</tr>
+<tr>
+<td>Event swap</td>
+<td>Once at end</td>
+<td>After each phase</td>
+</tr>
+<tr>
+<td>Best for</td>
+<td>Simple game loops, prototyping</td>
+<td>Complex pipelines, deterministic ordering</td>
+</tr>
+</tbody>
+</table>
 
 
 
@@ -2037,7 +2665,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="January 4, 2026 11:39:06 UTC">January 4, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="January 30, 2026 10:48:57 UTC">January 30, 2026</span>
   </span>
 
     

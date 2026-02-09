@@ -14,7 +14,7 @@
         <link rel="prev" href="../systems/">
       
       
-        <link rel="next" href="../../Tutorials/Tutorial-1%E2%80%94Your-first-ECS-World/">
+        <link rel="next" href="../../Tutorials/Debugging-Your-First-ECS-Application/">
       
       
         
@@ -276,7 +276,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../Explanation/ecs-and-the-game-loop/" class="md-tabs__link">
+        <a href="../../Explanation/Understanding-ECS-Debugging-%26-Profiling/" class="md-tabs__link">
           
   
   
@@ -298,7 +298,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../How-To%20Guides/How-to-add-InputState-%2B-AssetCache-as-Resources-and-use-them-in-systems/" class="md-tabs__link">
+        <a href="../../How-To%20Guides/How-to-Debug-Your-ECS-Application/" class="md-tabs__link">
           
   
   
@@ -344,7 +344,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../Tutorials/Tutorial-1%E2%80%94Your-first-ECS-World/" class="md-tabs__link">
+        <a href="../../Tutorials/Debugging-Your-First-ECS-Application/" class="md-tabs__link">
           
   
   
@@ -518,6 +518,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -560,6 +564,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Explanation/Understanding-ECS-Debugging-%26-Profiling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Understanding ECS Debugging &amp; Profiling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -729,6 +761,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Explanation/world-snapshots-save-load/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    World Snapshots (Save and Load)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -744,6 +804,10 @@
   
     
     
+      
+        
+      
+        
       
         
       
@@ -805,6 +869,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../How-To%20Guides/How-to-Debug-Your-ECS-Application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How to Debug Your ECS Application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -981,6 +1073,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../How-To%20Guides/How-to-save-and-load-a-world/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How to save and load a World
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../How-To%20Guides/How-to-split-logic-into-multiple-system-phases/" class="md-nav__link">
         
   
@@ -1075,6 +1195,10 @@
   
     
     
+      
+        
+      
+        
       
         
       
@@ -1235,6 +1359,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../debugging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging &amp; Profiling Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../entity/" class="md-nav__link">
         
   
@@ -1355,6 +1507,34 @@
     
   
     Resources (Singletons / World Globals)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../save-and-load/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Save and Load (World Snapshot) Reference
   
 
     
@@ -1791,6 +1971,89 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#snapshot-restore-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshot / Restore API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Snapshot / Restore API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#registercomponentsnapshott-dkey-componentctort-codec-snapshotcodect-d-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        registerComponentSnapshot&lt;T, D&gt;(key: ComponentCtor&lt;T&gt;, codec: SnapshotCodec&lt;T, D&gt;): this
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unregistercomponentsnapshottkey-componentctort-boolean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        unregisterComponentSnapshot&lt;T&gt;(key: ComponentCtor&lt;T&gt;): boolean
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#registerresourcesnapshott-dkey-componentctort-codec-snapshotcodect-d-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        registerResourceSnapshot&lt;T, D&gt;(key: ComponentCtor&lt;T&gt;, codec: SnapshotCodec&lt;T, D&gt;): this
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unregisterresourcesnapshottkey-componentctort-boolean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        unregisterResourceSnapshot&lt;T&gt;(key: ComponentCtor&lt;T&gt;): boolean
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#snapshot-worldsnapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snapshot(): WorldSnapshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#restoresnapshot-worldsnapshot-void" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        restore(snapshot: WorldSnapshot): void
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#system-api" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1969,6 +2232,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2011,6 +2278,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Tutorials/Debugging-Your-First-ECS-Application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging Your First ECS Application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -2139,6 +2434,34 @@
     
   
     Tutorial 5 — ECS + Three.js (render-sync + safe spawn/despawn)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Tutorials/Tutorial-6%E2%80%94Save-and-load/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial 6 — Save and load
   
 
     
@@ -2474,6 +2797,89 @@
     <span class="md-ellipsis">
       
         flush(): void
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snapshot-restore-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshot / Restore API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Snapshot / Restore API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#registercomponentsnapshott-dkey-componentctort-codec-snapshotcodect-d-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        registerComponentSnapshot&lt;T, D&gt;(key: ComponentCtor&lt;T&gt;, codec: SnapshotCodec&lt;T, D&gt;): this
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unregistercomponentsnapshottkey-componentctort-boolean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        unregisterComponentSnapshot&lt;T&gt;(key: ComponentCtor&lt;T&gt;): boolean
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#registerresourcesnapshott-dkey-componentctort-codec-snapshotcodect-d-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        registerResourceSnapshot&lt;T, D&gt;(key: ComponentCtor&lt;T&gt;, codec: SnapshotCodec&lt;T, D&gt;): this
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unregisterresourcesnapshottkey-componentctort-boolean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        unregisterResourceSnapshot&lt;T&gt;(key: ComponentCtor&lt;T&gt;): boolean
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#snapshot-worldsnapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snapshot(): WorldSnapshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#restoresnapshot-worldsnapshot-void" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        restore(snapshot: WorldSnapshot): void
       
     </span>
   </a>
@@ -2831,6 +3237,26 @@ It owns and coordinates:</p>
 <li>Automatically called by <code>update()</code> and <code>Schedule</code></li>
 </ul>
 <hr />
+<h2 id="snapshot-restore-api">Snapshot / Restore API<a class="headerlink" href="#snapshot-restore-api" title="Permanent link">&para;</a></h2>
+<h3 id="registercomponentsnapshott-dkey-componentctort-codec-snapshotcodect-d-this"><code>registerComponentSnapshot&lt;T, D&gt;(key: ComponentCtor&lt;T&gt;, codec: SnapshotCodec&lt;T, D&gt;): this</code><a class="headerlink" href="#registercomponentsnapshott-dkey-componentctort-codec-snapshotcodect-d-this" title="Permanent link">&para;</a></h3>
+<p>Registers a component serializer/deserializer for snapshots.</p>
+<hr />
+<h3 id="unregistercomponentsnapshottkey-componentctort-boolean"><code>unregisterComponentSnapshot&lt;T&gt;(key: ComponentCtor&lt;T&gt;): boolean</code><a class="headerlink" href="#unregistercomponentsnapshottkey-componentctort-boolean" title="Permanent link">&para;</a></h3>
+<p>Removes a component snapshot registration.</p>
+<hr />
+<h3 id="registerresourcesnapshott-dkey-componentctort-codec-snapshotcodect-d-this"><code>registerResourceSnapshot&lt;T, D&gt;(key: ComponentCtor&lt;T&gt;, codec: SnapshotCodec&lt;T, D&gt;): this</code><a class="headerlink" href="#registerresourcesnapshott-dkey-componentctort-codec-snapshotcodect-d-this" title="Permanent link">&para;</a></h3>
+<p>Registers a resource serializer/deserializer for snapshots.</p>
+<hr />
+<h3 id="unregisterresourcesnapshottkey-componentctort-boolean"><code>unregisterResourceSnapshot&lt;T&gt;(key: ComponentCtor&lt;T&gt;): boolean</code><a class="headerlink" href="#unregisterresourcesnapshottkey-componentctort-boolean" title="Permanent link">&para;</a></h3>
+<p>Removes a resource snapshot registration.</p>
+<hr />
+<h3 id="snapshot-worldsnapshot"><code>snapshot(): WorldSnapshot</code><a class="headerlink" href="#snapshot-worldsnapshot" title="Permanent link">&para;</a></h3>
+<p>Exports world data state (entities + registered components/resources + allocator).</p>
+<hr />
+<h3 id="restoresnapshot-worldsnapshot-void"><code>restore(snapshot: WorldSnapshot): void</code><a class="headerlink" href="#restoresnapshot-worldsnapshot-void" title="Permanent link">&para;</a></h3>
+<p>Loads snapshot data into the world.</p>
+<p>Runtime behavior (systems/schedule/events/queued commands) is not persisted.</p>
+<hr />
 <h2 id="system-api">System API<a class="headerlink" href="#system-api" title="Permanent link">&para;</a></h2>
 <h3 id="addsystemfn-systemfn-this"><code>addSystem(fn: SystemFn): this</code><a class="headerlink" href="#addsystemfn-systemfn-this" title="Permanent link">&para;</a></h3>
 <p>Registers a system.</p>
@@ -2948,7 +3374,7 @@ At each phase boundary:</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="January 13, 2026 00:23:23 UTC">January 13, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="February 8, 2026 13:29:03 UTC">February 8, 2026</span>
   </span>
 
     
