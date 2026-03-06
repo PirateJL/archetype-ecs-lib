@@ -55,7 +55,7 @@ world.addSystem((w) => {
 world.update(1 / 60);
 ```
 
-> Note: `SystemFn` is typed as `(world: WorldApi, dt) => void`..
+> Note: `SystemFn` is typed as `(world: WorldApi, dt) => void`.
 
 ---
 
