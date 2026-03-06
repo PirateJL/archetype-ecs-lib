@@ -60,7 +60,8 @@ jobs:
       - name: Install mkdocs + plugins
         run: |
           python -m pip install --upgrade pip
-          pip install mkdocs mkdocs-material mkdocs-with-pdf mkdocs-git-committers-plugin-2 mkdocs-git-revision-date-localized-plugin
+          pip install "mkdocs<2.0" mkdocs-material mkdocs-with-pdf mkdocs-git-committers-plugin-2 mkdocs-git-revision-date-localized-plugin
+          mkdocs --version
 
       - name: Build docs (fail on warnings)
         env:
