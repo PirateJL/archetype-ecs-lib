@@ -1,4 +1,4 @@
-# Tutorial 2 — Components & archetypes
+# Tutorial 2 - Components & archetypes
 
 Outcome: you’ll *see* how component sets automatically form **archetypes (tables)**, and how entities “move” between them when you `add()` / `remove()` components—without digging into internals. Archetypes store data in **SoA** (one column per component type). 
 

@@ -1,4 +1,4 @@
-# Tutorial 5 — ECS + Three.js (render-sync + safe spawn/despawn)
+# Tutorial 5 - ECS + Three.js (render-sync + safe spawn/despawn)
 
 Outcome: you’ll see **moving cubes** in Three.js. You’ll also **spawn** new cubes on click and **despawn** them safely using `cmd()` + **phase flush boundaries** (via `Schedule`). 
 

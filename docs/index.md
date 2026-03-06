@@ -16,7 +16,7 @@ This documentation is split into 4 parts :
 * **[Explanation](./Explanation/ecs-and-the-game-loop.md)** the general operation of the library
 * Find information in the **[Reference](./Reference/archetypes.md)**
 * Target a specific goal using the **[How-To Guides](./How-To%20Guides/How-to-add-remove-components-at-runtime.md)**
-* Learn through the **[Tutorials](./Tutorials/Tutorial-1—Your-first-ECS-World.md)**: step-by-step guidance
+* Learn through the **[Tutorials](Tutorials/Tutorial-1-Your-first-ECS-World.md)**: step-by-step guidance
 
 ---
 
@@ -58,7 +58,7 @@ world.update(1 / 60);
 ```
 
 > Note: `SystemFn` is typed as `(world: WorldApi, dt) => void`.  
-> Checkout the [tutorials](./Tutorials/Tutorial-1—Your-first-ECS-World.md) for more!  
+> Checkout the [tutorials](Tutorials/Tutorial-1-Your-first-ECS-World.md) for more!  
 
 ---
 

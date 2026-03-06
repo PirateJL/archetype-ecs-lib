@@ -1,4 +1,4 @@
-# Tutorial 4 — Writing systems
+# Tutorial 4 - Writing systems
 
 Outcome: you’ll write real gameplay logic as **systems**: query components, mutate data safely, and run everything through a **Schedule** (`input → sim → cleanup`) with automatic `flush()` between phases. 
 

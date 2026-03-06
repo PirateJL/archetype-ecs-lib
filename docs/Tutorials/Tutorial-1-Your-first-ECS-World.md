@@ -1,4 +1,4 @@
-# Tutorial 1 — Your first ECS World
+# Tutorial 1 - Your first ECS World
 
 Outcome: you’ll run a tiny simulation loop where entities with `Position` + `Velocity` move over time, using `World`, `spawn`, `add`, `query`, `addSystem`, and `update(dt)`. 
 
