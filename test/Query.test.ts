@@ -260,4 +260,33 @@ describe("Query", () => {
         // After queryEach finishes (even via throw), iteration depth should be restored.
         expect(() => world.add(e1, Velocity, new Velocity(2, 2))).not.toThrow();
     });
+
+    it("_iterateDepth is restored when query iterator is closed early via .return()", () => {
+        const e1 = world.spawn();
+        world.add(e1, Position, new Position(1, 1));
+
+        const iter = world.query(Position)[Symbol.iterator]();
+        iter.next();
+
+        expect(() => world.spawn()).toThrow(/Cannot do structural change/i);
+
+        // Explicitly close (mirrors what for..of break does internally)
+        iter.return?.();
+
+        expect(() => world.spawn()).not.toThrow();
+    });
+
+    it("_iterateDepth is restored when queryTables iterator is closed early via .return()", () => {
+        const e1 = world.spawn();
+        world.add(e1, Position, new Position(1, 1));
+
+        const iter = world.queryTables(Position)[Symbol.iterator]();
+        iter.next();
+
+        expect(() => world.spawn()).toThrow(/Cannot do structural change/i);
+
+        iter.return?.();
+
+        expect(() => world.spawn()).not.toThrow();
+    });
 });
