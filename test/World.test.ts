@@ -196,4 +196,37 @@ describe("World", () => {
         expect(w.has(e, Position)).toBe(false);
         expect(w.isAlive(e)).toBe(false);
     });
+
+    test("update() swapEvents() is called even when flush() throws", () => {
+        const w = new World();
+        const e = w.spawn();
+
+        class Ping { constructor(public n: number) {} }
+
+        w.addSystem((world: WorldApi) => {
+            world.emit(Ping, new Ping(42));
+            world.cmd().despawn(e);
+            world.cmd().despawn(e); // second despawn causes flush to throw
+        });
+
+        expect(() => w.update(0)).toThrow(/stale entity/i);
+
+        // swapEvents was still called: event is now readable
+        const got: number[] = [];
+        w.drainEvents(Ping, (ev: Ping) => got.push(ev.n));
+        expect(got).toEqual([42]);
+    });
+
+    test("update() system error is not masked when flush() also throws", () => {
+        const w = new World();
+        const e = w.spawn();
+
+        w.addSystem((world: WorldApi) => {
+            world.cmd().despawn(e);
+            world.cmd().despawn(e); // will cause flush to throw
+            throw new Error("system error");
+        });
+
+        expect(() => w.update(0)).toThrow("system error");
+    });
 });
