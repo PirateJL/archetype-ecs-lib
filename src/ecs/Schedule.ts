@@ -159,46 +159,47 @@ export class Schedule {
 
         const frameStart = worldInstance._profBeginFrame(dt);
 
-        for (const phase of phases) {
-            const phaseStart = performance.now();
-            const list = world._scheduleSystems.get(phase);
+        try {
+            for (const phase of phases) {
+                const phaseStart = performance.now();
+                const list = world._scheduleSystems.get(phase);
 
-            // Run systems only if they exist for this phase
-            if (list) {
-                for (const fn of list) {
-                    const sysStart = performance.now();
-                    try {
-                        fn(world, dt);
-                    } catch (error: any) {
-                        const sysName = fn.name && fn.name.length > 0 ? fn.name : "<anonymous>";
-                        const msg = error.message !== undefined && typeof error.message === 'string' ?
-                            error.message : JSON.stringify(error);
-                        const e = new Error(`[phase=${phase} system=${sysName}] ${msg}`);
-                        (e as any).cause = error;
-                        throw e;
-                    } finally {
-                        const sysName = fn.name && fn.name.length > 0 ? fn.name : "<anonymous>";
-                        worldInstance._profAddSystem(`${phase}:${sysName}`, performance.now() - sysStart);
+                // Run systems only if they exist for this phase
+                if (list) {
+                    for (const fn of list) {
+                        const sysStart = performance.now();
+                        try {
+                            fn(world, dt);
+                        } catch (error: any) {
+                            const sysName = fn.name && fn.name.length > 0 ? fn.name : "<anonymous>";
+                            const msg = error.message !== undefined && typeof error.message === 'string' ?
+                                error.message : JSON.stringify(error);
+                            const e = new Error(`[phase=${phase} system=${sysName}] ${msg}`);
+                            (e as any).cause = error;
+                            throw e;
+                        } finally {
+                            const sysName = fn.name && fn.name.length > 0 ? fn.name : "<anonymous>";
+                            worldInstance._profAddSystem(`${phase}:${sysName}`, performance.now() - sysStart);
+                        }
                     }
                 }
-            }
 
-            if (this.boundaryMode !== "manual") {
-                // apply deferred commands between phases
-                if (world.cmd().hasPending()) {
-                    world.flush();
+                if (this.boundaryMode !== "manual") {
+                    // apply deferred commands between phases
+                    if (world.cmd().hasPending()) {
+                        world.flush();
+                    }
+
+                    // deliver events emitted in this phase to the next phase
+                    world.swapEvents();
                 }
 
-                // deliver events emitted in this phase to the next phase
-                world.swapEvents();
+                worldInstance._profAddPhase(phase, performance.now() - phaseStart);
             }
-
-            worldInstance._profAddPhase(phase, performance.now() - phaseStart);
+        } finally {
+            worldInstance._profEndFrame(frameStart);
+            worldInstance.updateOverlay(worldInstance.stats(), worldInstance.statsHistory());
         }
-
-        worldInstance._profEndFrame(frameStart);
-
-        worldInstance.updateOverlay(worldInstance.stats(), worldInstance.statsHistory());
     }
 
     /**
