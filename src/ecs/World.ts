@@ -563,8 +563,9 @@ export class World extends StatsOverlay implements WorldApi
             }
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
-        return { [Symbol.iterator]() { return gen(this); } };
+        return { [Symbol.iterator]() { return gen(self); } };
     }
 
     /**
@@ -600,6 +601,7 @@ export class World extends StatsOverlay implements WorldApi
             }
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
         return { [Symbol.iterator]() { return gen(self); } };
     }
