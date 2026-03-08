@@ -266,8 +266,8 @@ describe("Query", () => {
         world.add(e1, Position, new Position(1, 1));
 
         // for..of break internally calls iterator.return(), which triggers the finally block
-        // tslint:disable-next-line:no-unused-variable
-        for (const _r of world.query(Position)) { break; }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for (const _ of world.query(Position)) { break; }
 
         expect(() => world.spawn()).not.toThrow();
     });
@@ -276,8 +276,8 @@ describe("Query", () => {
         const e1 = world.spawn();
         world.add(e1, Position, new Position(1, 1));
 
-        // tslint:disable-next-line:no-unused-variable
-        for (const _t of world.queryTables(Position)) { break; }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for (const _ of world.queryTables(Position)) { break; }
 
         expect(() => world.spawn()).not.toThrow();
     });
