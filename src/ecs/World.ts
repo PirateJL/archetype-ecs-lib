@@ -2,7 +2,7 @@ import {Archetype} from "./Archetype";
 import {type Command, Commands} from "./Commands";
 import {EntityManager} from "./EntityManager";
 import {EventChannel} from "./Events";
-import {mergeSignature, signatureHasAll, signatureKey, subtractSignature} from "./Signature";
+import {mergeSignature, signatureHasAll, signatureHasAny, signatureKey, subtractSignature} from "./Signature";
 import {typeId} from "./TypeRegistry";
 import {WorldSnapshotStore} from "./WorldSnapshotStore";
 import type {
@@ -10,6 +10,7 @@ import type {
     ComponentCtorBundleItem,
     Entity,
     EntityMeta,
+    QueryFilter,
     QueryRow1,
     QueryRow2,
     QueryRow3,
@@ -529,15 +530,16 @@ export class World extends StatsOverlay implements WorldApi
      * Query all entities having all required component types.
      * Iterates archetypes (tables) and yields SoA columns for cache-friendly loops.
      */
-    public query<A>(c1: ComponentCtor<A>): Iterable<QueryRow1<A>>;
-    public query<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryRow2<A, B>>;
-    public query<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryRow3<A, B, C>>;
-    public query<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryRow4<A, B, C, D>>;
-    public query<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryRow5<A, B, C, D, E>>;
-    public query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryRow6<A, B, C, D, E, F>>;
-    public query(...ctors: ComponentCtor<any>[]): Iterable<any>
+    public query<A>(c1: ComponentCtor<A>, filter?: QueryFilter): Iterable<QueryRow1<A>>;
+    public query<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, filter?: QueryFilter): Iterable<QueryRow2<A, B>>;
+    public query<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, filter?: QueryFilter): Iterable<QueryRow3<A, B, C>>;
+    public query<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, filter?: QueryFilter): Iterable<QueryRow4<A, B, C, D>>;
+    public query<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, filter?: QueryFilter): Iterable<QueryRow5<A, B, C, D, E>>;
+    public query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, filter?: QueryFilter): Iterable<QueryRow6<A, B, C, D, E, F>>;
+    public query(...args: any[]): Iterable<any>
     {
-        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
+        const { ctors, filter } = World._splitArgs(args);
+        const { requested, needSorted, withoutSorted } = World._buildQueryTypeIds(ctors, filter);
 
         function* gen(world: World): IterableIterator<any>
         {
@@ -546,6 +548,7 @@ export class World extends StatsOverlay implements WorldApi
                 for (const a of world.archetypes) {
                     if (!a) continue;
                     if (!signatureHasAll(a.sig, needSorted)) continue;
+                    if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
 
                     // Return columns in requested order (c1,c2,c3...).
                     const cols = new Array<any[]>(requested.length);
@@ -572,15 +575,16 @@ export class World extends StatsOverlay implements WorldApi
      * Table query: yields one item per matching archetype (SoA columns + entity array).
      * This avoids allocating one object per entity row.
      */
-    public queryTables<A>(c1: ComponentCtor<A>): Iterable<QueryTable1<A>>;
-    public queryTables<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryTable2<A, B>>;
-    public queryTables<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryTable3<A, B, C>>;
-    public queryTables<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryTable4<A, B, C, D>>;
-    public queryTables<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryTable5<A, B, C, D, E>>;
-    public queryTables<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryTable6<A, B, C, D, E, F>>;
-    public queryTables(...ctors: ComponentCtor<any>[]): Iterable<any>
+    public queryTables<A>(c1: ComponentCtor<A>, filter?: QueryFilter): Iterable<QueryTable1<A>>;
+    public queryTables<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, filter?: QueryFilter): Iterable<QueryTable2<A, B>>;
+    public queryTables<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, filter?: QueryFilter): Iterable<QueryTable3<A, B, C>>;
+    public queryTables<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, filter?: QueryFilter): Iterable<QueryTable4<A, B, C, D>>;
+    public queryTables<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, filter?: QueryFilter): Iterable<QueryTable5<A, B, C, D, E>>;
+    public queryTables<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, filter?: QueryFilter): Iterable<QueryTable6<A, B, C, D, E, F>>;
+    public queryTables(...args: any[]): Iterable<any>
     {
-        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
+        const { ctors, filter } = World._splitArgs(args);
+        const { requested, needSorted, withoutSorted } = World._buildQueryTypeIds(ctors, filter);
 
         function* gen(world: World): IterableIterator<any>
         {
@@ -589,6 +593,7 @@ export class World extends StatsOverlay implements WorldApi
                 for (const a of world.archetypes) {
                     if (!a) continue;
                     if (!signatureHasAll(a.sig, needSorted)) continue;
+                    if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
 
                     const out: any = { entities: a.entities };
                     for (let i = 0; i < requested.length; i++) {
@@ -610,23 +615,32 @@ export class World extends StatsOverlay implements WorldApi
      * Callback query: calls `fn` for each matching entity row (no yield object allocations).
      */
     public queryEach<A>(c1: ComponentCtor<A>, fn: (e: Entity, c1: A) => void): void;
+    public queryEach<A>(c1: ComponentCtor<A>, filter: QueryFilter, fn: (e: Entity, c1: A) => void): void;
     public queryEach<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, fn: (e: Entity, c1: A, c2: B) => void): void;
+    public queryEach<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B) => void): void;
     public queryEach<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, fn: (e: Entity, c1: A, c2: B, c3: C) => void): void;
+    public queryEach<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C) => void): void;
     public queryEach<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D) => void): void;
+    public queryEach<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D) => void): void;
     public queryEach<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E) => void): void;
+    public queryEach<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E) => void): void;
     public queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
+    public queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
     public queryEach(...args: any[]): void
     {
         const fn = args[args.length - 1] as (...params: unknown[]) => void;
-        const ctors = args.slice(0, args.length - 1) as ComponentCtor<any>[];
+        const rest = args.slice(0, args.length - 1);
+        const filter = World._isQueryFilter(rest[rest.length - 1]) ? rest.pop() as QueryFilter : undefined;
+        const ctors = rest as ComponentCtor<any>[];
 
-        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
+        const { requested, needSorted, withoutSorted } = World._buildQueryTypeIds(ctors, filter);
 
         this._iterateDepth++;
         try {
             for (const a of this.archetypes) {
                 if (!a) continue;
                 if (!signatureHasAll(a.sig, needSorted)) continue;
+                if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
 
                 const cols = new Array<any[]>(requested.length);
                 for (let i = 0; i < requested.length; i++) cols[i] = a.column<any>(requested[i]!);
@@ -677,16 +691,32 @@ export class World extends StatsOverlay implements WorldApi
         this.archByKey.set("", archetype0);
     }
 
-    private static _buildQueryTypeIds(ctors: ComponentCtor<any>[]): { requested: TypeId[]; needSorted: TypeId[] }
+    private static _isQueryFilter(v: unknown): v is QueryFilter
+    {
+        return typeof v === 'object' && v !== null && !Array.isArray(v);
+    }
+
+    private static _splitArgs(args: any[]): { ctors: ComponentCtor<any>[]; filter: QueryFilter | undefined }
+    {
+        const last = args[args.length - 1];
+        if (World._isQueryFilter(last)) {
+            return { ctors: args.slice(0, args.length - 1) as ComponentCtor<any>[], filter: last };
+        }
+        return { ctors: args as ComponentCtor<any>[], filter: undefined };
+    }
+
+    private static _buildQueryTypeIds(
+        ctors: ComponentCtor<any>[],
+        filter?: QueryFilter
+    ): { requested: TypeId[]; needSorted: TypeId[]; withoutSorted: TypeId[] }
     {
         // Preserve caller order for (c1,c2,c3,...) mapping.
         const requested: TypeId[] = new Array(ctors.length);
         for (let i = 0; i < ctors.length; i++) requested[i] = typeId(ctors[i]!);
 
-        // Same ids, but sorted + deduped for signatureHasAll().
-        const needSorted: TypeId[] = requested.slice();
-        needSorted.sort((a, b) => a - b);
-
+        // needSorted = requested ids + any "with-only" ids (present but not returned), sorted + deduped.
+        const withOnlyIds: TypeId[] = filter?.with?.map(c => typeId(c)) ?? [];
+        const needSorted: TypeId[] = [...requested, ...withOnlyIds].sort((a, b) => a - b);
         let w = 0;
         for (let i = 0; i < needSorted.length; i++) {
             const v = needSorted[i]!;
@@ -694,7 +724,10 @@ export class World extends StatsOverlay implements WorldApi
         }
         needSorted.length = w;
 
-        return { requested, needSorted };
+        // withoutSorted: archetypes that have ANY of these are excluded.
+        const withoutSorted: TypeId[] = (filter?.without?.map(c => typeId(c)) ?? []).sort((a, b) => a - b);
+
+        return { requested, needSorted, withoutSorted };
     }
 
     private _ensureNotIterating(op: string): void
