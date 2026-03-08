@@ -344,4 +344,16 @@ describe("Schedule", () => {
 
         expect(() => sched.run(world, 0.016, ["sim"])).toThrow("Lifecycle conflict");
     });
+
+    test("_profEndFrame and updateOverlay are called even when a system throws", () => {
+        const sched = new Schedule();
+        const world = makeWorldStub({ hasPending: false });
+
+        sched.add(world, "sim", () => { throw new Error("boom"); });
+
+        expect(() => sched.run(world as any, 0.016, ["sim"])).toThrow();
+
+        expect((world as any)._profEndFrame).toHaveBeenCalled();
+        expect((world as any).updateOverlay).toHaveBeenCalled();
+    });
 });

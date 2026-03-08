@@ -169,6 +169,7 @@ export class World extends StatsOverlay implements WorldApi
         const frameStart = this._profBeginFrame(dt);
 
         this._iterateDepth++;
+        let caughtError: unknown;
         try {
             for (const s of this.systems) {
                 if (this._profilingEnabled) {
@@ -180,14 +181,22 @@ export class World extends StatsOverlay implements WorldApi
                     s(this, dt);
                 }
             }
+        } catch (e) {
+            caughtError = e;
         } finally {
             this._iterateDepth--;
-            this.flush();
+            try {
+                this.flush();
+            } catch (e) {
+                // System error takes priority; flush error only surfaced when no system threw.
+                if (caughtError === undefined) caughtError = e;
+            }
             this.swapEvents();
             this._profAddPhase("update", this._profilingEnabled ? (performance.now() - frameStart) : 0);
             this._profEndFrame(frameStart);
         }
 
+        if (caughtError !== undefined) throw caughtError;
         this.updateOverlay(this.stats(), this.statsHistory());
     }
 
@@ -554,7 +563,9 @@ export class World extends StatsOverlay implements WorldApi
             }
         }
 
-        return gen(this);
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        const self = this;
+        return { [Symbol.iterator]() { return gen(self); } };
     }
 
     /**
@@ -590,7 +601,9 @@ export class World extends StatsOverlay implements WorldApi
             }
         }
 
-        return gen(this);
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        const self = this;
+        return { [Symbol.iterator]() { return gen(self); } };
     }
 
     /**

@@ -260,4 +260,25 @@ describe("Query", () => {
         // After queryEach finishes (even via throw), iteration depth should be restored.
         expect(() => world.add(e1, Velocity, new Velocity(2, 2))).not.toThrow();
     });
+
+    it("_iterateDepth is restored when query loop is broken early", () => {
+        const e1 = world.spawn();
+        world.add(e1, Position, new Position(1, 1));
+
+        // for..of break internally calls iterator.return(), which triggers the finally block
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for (const _ of world.query(Position)) { break; }
+
+        expect(() => world.spawn()).not.toThrow();
+    });
+
+    it("_iterateDepth is restored when queryTables loop is broken early", () => {
+        const e1 = world.spawn();
+        world.add(e1, Position, new Position(1, 1));
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for (const _ of world.queryTables(Position)) { break; }
+
+        expect(() => world.spawn()).not.toThrow();
+    });
 });
