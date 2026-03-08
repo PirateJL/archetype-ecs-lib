@@ -554,7 +554,8 @@ export class World extends StatsOverlay implements WorldApi
             }
         }
 
-        return gen(this);
+        const self = this;
+        return { [Symbol.iterator]() { return gen(this); } };
     }
 
     /**
@@ -590,7 +591,8 @@ export class World extends StatsOverlay implements WorldApi
             }
         }
 
-        return gen(this);
+        const self = this;
+        return { [Symbol.iterator]() { return gen(self); } };
     }
 
     /**
