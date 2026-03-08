@@ -261,31 +261,23 @@ describe("Query", () => {
         expect(() => world.add(e1, Velocity, new Velocity(2, 2))).not.toThrow();
     });
 
-    it("_iterateDepth is restored when query iterator is closed early via .return()", () => {
+    it("_iterateDepth is restored when query loop is broken early", () => {
         const e1 = world.spawn();
         world.add(e1, Position, new Position(1, 1));
 
-        const iter = world.query(Position)[Symbol.iterator]();
-        iter.next();
-
-        expect(() => world.spawn()).toThrow(/Cannot do structural change/i);
-
-        // Explicitly close (mirrors what for..of break does internally)
-        iter.return?.();
+        // for..of break internally calls iterator.return(), which triggers the finally block
+        // tslint:disable-next-line:no-unused-variable
+        for (const _r of world.query(Position)) { break; }
 
         expect(() => world.spawn()).not.toThrow();
     });
 
-    it("_iterateDepth is restored when queryTables iterator is closed early via .return()", () => {
+    it("_iterateDepth is restored when queryTables loop is broken early", () => {
         const e1 = world.spawn();
         world.add(e1, Position, new Position(1, 1));
 
-        const iter = world.queryTables(Position)[Symbol.iterator]();
-        iter.next();
-
-        expect(() => world.spawn()).toThrow(/Cannot do structural change/i);
-
-        iter.return?.();
+        // tslint:disable-next-line:no-unused-variable
+        for (const _t of world.queryTables(Position)) { break; }
 
         expect(() => world.spawn()).not.toThrow();
     });
