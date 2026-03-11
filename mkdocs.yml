@@ -85,7 +85,7 @@ plugins:
   with-pdf:
       enabled_if_env: ENABLE_PDF_EXPORT
       output_path: assets/document.pdf
-      cover_subtitle: "La gestion de contenu intégrée"
+      cover_subtitle: "Integrated content management"
       cover_logo: assets/logo_couleur.png
       exclude_pages:
         - Demo/
