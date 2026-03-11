@@ -2,6 +2,8 @@ import {
     Schedule,
     World,
     type ComponentCtor,
+    type Entity,
+    type QueryFilter,
     type SnapshotCodec,
     type WorldApi,
     type WorldSnapshot
@@ -23,6 +25,9 @@ class Circle {
 }
 
 class PlayerTag { }
+
+// Marker added to falling items when the game ends — demonstrates QueryFilter `with`/`without`
+class FrozenTag { }
 
 type ItemKind = "star" | "bomb";
 type FallingKind = { kind: ItemKind };
@@ -251,7 +256,9 @@ function createInputSystem(input: InputState, actionQueue: ControlAction[]) {
         const game = world.requireResource(GameState);
         const horizontal = (input.leftHeld ? -1 : 0) + (input.rightHeld ? 1 : 0);
 
-        world.queryEach(Velocity, PlayerTag, (_entity: { id: number; gen: number }, velocity: Velocity, _player: PlayerTag) => {
+        // `with: [PlayerTag]` filters to the player without returning the tag value
+        const playerFilter: QueryFilter = { with: [PlayerTag] };
+        world.queryEach(Velocity, playerFilter, (_entity: Entity, velocity: Velocity) => {
             velocity.x = game.running ? horizontal * PLAYER_SPEED : 0;
             velocity.y = 0;
         });
@@ -278,12 +285,14 @@ function createSimulateSystem(viewport: Viewport) {
             }
         }
 
-        world.queryEach(Position, Velocity, (_entity: { id: number; gen: number }, position: Position, velocity: Velocity) => {
+        // `without: [FrozenTag]` skips items frozen on game-over
+        world.queryEach(Position, Velocity, { without: [FrozenTag] }, (_entity: Entity, position: Position, velocity: Velocity) => {
             position.x += velocity.x * dt;
             position.y += velocity.y * dt;
         });
 
-        world.queryEach(Position, Circle, PlayerTag, (_entity: { id: number; gen: number }, position: Position, circle: Circle, _player: PlayerTag) => {
+        // `with: [PlayerTag]` filters to the player without returning the tag value
+        world.queryEach(Position, Circle, { with: [PlayerTag] }, (_entity: Entity, position: Position, circle: Circle) => {
             const minX = circle.radius;
             const maxX = Math.max(minX, viewport.width - circle.radius);
 
@@ -316,7 +325,8 @@ function collideSystem(world: WorldApi, _dt: number): void {
     let playerY = 0;
     let playerR = 0;
 
-    for (const { c1: pos, c2: circle } of world.query(Position, Circle, PlayerTag)) {
+    // `with: [PlayerTag]` — include only the player entity, no tag value returned
+    for (const { c1: pos, c2: circle } of world.query(Position, Circle, { with: [PlayerTag] })) {
         playerX = pos.x;
         playerY = pos.y;
         playerR = circle.radius;
@@ -351,7 +361,13 @@ function resolveSystem(world: WorldApi, _dt: number): void {
         }
 
         game.lives = Math.max(0, game.lives - 1);
-        if (game.lives === 0) game.running = false;
+        if (game.lives === 0) {
+            game.running = false;
+            // Freeze all active falling items — `without: [FrozenTag]` avoids double-adding
+            for (const { e } of world.query(FallingKindToken, { without: [FrozenTag] })) {
+                world.cmd().add(e, FrozenTag, new FrozenTag());
+            }
+        }
     });
 }
 
@@ -365,7 +381,8 @@ function createRenderSystem(ctx: CanvasRenderingContext2D, viewport: Viewport, t
         ctx.fillStyle = bg;
         ctx.fillRect(0, 0, viewport.width, viewport.height);
 
-        for (const table of world.queryTables(Position, Circle, FallingKindToken)) {
+        // Active falling items — `without: [FrozenTag]`
+        for (const table of world.queryTables(Position, Circle, FallingKindToken, { without: [FrozenTag] })) {
             for (let i = 0; i < table.entities.length; i++) {
                 const pos = table.c1[i]!;
                 const circle = table.c2[i]!;
@@ -378,7 +395,22 @@ function createRenderSystem(ctx: CanvasRenderingContext2D, viewport: Viewport, t
             }
         }
 
-        for (const { c1: pos, c2: circle } of world.query(Position, Circle, PlayerTag)) {
+        // Frozen falling items — `with: [FrozenTag]`, rendered faded
+        for (const table of world.queryTables(Position, Circle, FallingKindToken, { with: [FrozenTag] })) {
+            for (let i = 0; i < table.entities.length; i++) {
+                const pos = table.c1[i]!;
+                const circle = table.c2[i]!;
+                const falling = table.c3[i]!;
+
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, circle.radius, 0, Math.PI * 2);
+                ctx.fillStyle = falling.kind === "star" ? "rgba(126,249,255,0.3)" : "rgba(255,107,107,0.3)";
+                ctx.fill();
+            }
+        }
+
+        // `with: [PlayerTag]` — player entity only, no tag value returned
+        for (const { c1: pos, c2: circle } of world.query(Position, Circle, { with: [PlayerTag] })) {
             ctx.beginPath();
             ctx.arc(pos.x, pos.y, circle.radius, 0, Math.PI * 2);
             ctx.fillStyle = "#b5ff7e";
