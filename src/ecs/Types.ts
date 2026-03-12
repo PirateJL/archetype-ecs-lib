@@ -36,6 +36,26 @@ export type TypeId = number;
 
 export type SystemFn = (world: WorldApi, dt: number) => void;
 
+/**
+ * Optional filter applied to any query.
+ *
+ * - `without`: exclude archetypes that have ANY of these component types.
+ * - `with`: require these component types to be present without returning their values.
+ *
+ * @example
+ * ```ts
+ * // Entities with Position but NOT Dead
+ * world.query(Position, { without: [Dead] })
+ *
+ * // Entities with Position AND Active marker, but NOT Frozen
+ * world.query(Position, { with: [Active], without: [Frozen] })
+ * ```
+ */
+export type QueryFilter = {
+    readonly without?: ReadonlyArray<ComponentCtor<any>>;
+    readonly with?: ReadonlyArray<ComponentCtor<any>>;
+};
+
 export type SnapshotCodec<T, D = unknown> = Readonly<{
     /**
      * Stable key written into the snapshot payload.
@@ -268,30 +288,36 @@ export interface WorldApi
 
     //#region ----- query ops -----
     // ---- Typed query rows (c1/c2/... follow ctor argument order) ----
-    query<A>(c1: ComponentCtor<A>): Iterable<QueryRow1<A>>;
-    query<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryRow2<A, B>>;
-    query<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryRow3<A, B, C>>;
-    query<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryRow4<A, B, C, D>>;
-    query<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryRow5<A, B, C, D, E>>;
-    query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryRow6<A, B, C, D, E, F>>;
-    query(...ctors: ComponentCtor<any>[]): Iterable<any>;
+    query<A>(c1: ComponentCtor<A>, filter?: QueryFilter): Iterable<QueryRow1<A>>;
+    query<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, filter?: QueryFilter): Iterable<QueryRow2<A, B>>;
+    query<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, filter?: QueryFilter): Iterable<QueryRow3<A, B, C>>;
+    query<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, filter?: QueryFilter): Iterable<QueryRow4<A, B, C, D>>;
+    query<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, filter?: QueryFilter): Iterable<QueryRow5<A, B, C, D, E>>;
+    query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, filter?: QueryFilter): Iterable<QueryRow6<A, B, C, D, E, F>>;
+    query(...args: any[]): Iterable<any>;
 
     // ---- Table queries (SoA columns per archetype, no per-entity allocations) ----
-    queryTables<A>(c1: ComponentCtor<A>): Iterable<QueryTable1<A>>;
-    queryTables<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryTable2<A, B>>;
-    queryTables<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryTable3<A, B, C>>;
-    queryTables<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryTable4<A, B, C, D>>;
-    queryTables<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryTable5<A, B, C, D, E>>;
-    queryTables<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryTable6<A, B, C, D, E, F>>;
-    queryTables(...ctors: ComponentCtor<any>[]): Iterable<any>;
+    queryTables<A>(c1: ComponentCtor<A>, filter?: QueryFilter): Iterable<QueryTable1<A>>;
+    queryTables<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, filter?: QueryFilter): Iterable<QueryTable2<A, B>>;
+    queryTables<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, filter?: QueryFilter): Iterable<QueryTable3<A, B, C>>;
+    queryTables<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, filter?: QueryFilter): Iterable<QueryTable4<A, B, C, D>>;
+    queryTables<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, filter?: QueryFilter): Iterable<QueryTable5<A, B, C, D, E>>;
+    queryTables<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, filter?: QueryFilter): Iterable<QueryTable6<A, B, C, D, E, F>>;
+    queryTables(...args: any[]): Iterable<any>;
 
     // ---- Callback queries (no generator yield objects) ----
     queryEach<A>(c1: ComponentCtor<A>, fn: (e: Entity, c1: A) => void): void;
+    queryEach<A>(c1: ComponentCtor<A>, filter: QueryFilter, fn: (e: Entity, c1: A) => void): void;
     queryEach<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, fn: (e: Entity, c1: A, c2: B) => void): void;
+    queryEach<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B) => void): void;
     queryEach<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, fn: (e: Entity, c1: A, c2: B, c3: C) => void): void;
+    queryEach<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C) => void): void;
     queryEach<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D) => void): void;
+    queryEach<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D) => void): void;
     queryEach<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E) => void): void;
+    queryEach<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E) => void): void;
     queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
+    queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
     queryEach(...args: any[]): void;
     //#endregion
 }

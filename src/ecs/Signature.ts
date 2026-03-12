@@ -37,3 +37,19 @@ export function signatureHasAll(have: Signature, need: Signature): boolean {
     }
     return j === need.length;
 }
+
+/**
+ * True if `have` contains at least one element from `any`. Both must be sorted ascending.
+ */
+export function signatureHasAny(have: Signature, any: Signature): boolean {
+    let i = 0;
+    let j = 0;
+    while (i < have.length && j < any.length) {
+        const a = have[i]!;
+        const b = any[j]!;
+        if (a === b) return true;
+        if (a < b) i++;
+        else j++;
+    }
+    return false;
+}
