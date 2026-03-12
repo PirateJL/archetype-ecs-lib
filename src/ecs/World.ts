@@ -50,6 +50,13 @@ export class World extends StatsOverlay implements WorldApi
     private readonly eventChannels = new Map<ComponentCtor<any>, EventChannel<any>>();
     private readonly snapshotStore = new WorldSnapshotStore();
 
+    /**
+     * Query result cache: maps a sorted query signature key → matching archetypes.
+     * `checked` tracks how many archetypes were scanned when the entry was last updated.
+     * Because archetypes are append-only, new ones are scanned incrementally on next use.
+     */
+    private readonly _queryCache = new Map<string, { archs: Archetype[]; checked: number }>();
+
     /** @internal Phase -> systems mapping for Schedule */
     public readonly _scheduleSystems = new Map<string, SystemFn[]>();
 
@@ -417,8 +424,11 @@ export class World extends StatsOverlay implements WorldApi
             return;
         }
 
-        const dstSig = mergeSignature(src.sig, tid);
-        const dst = this._getOrCreateArchetype(dstSig);
+        let dst = src.addEdges.get(tid);
+        if (!dst) {
+            dst = this._getOrCreateArchetype(mergeSignature(src.sig, tid));
+            src.addEdges.set(tid, dst);
+        }
 
         this._moveEntity(e, src, srcMeta.row, dst, (t: TypeId) => {
             if (t === tid) return value;
@@ -482,8 +492,11 @@ export class World extends StatsOverlay implements WorldApi
         const src = this.archetypes[srcMeta.arch]!;
         if (!src.has(tid)) return;
 
-        const dstSig = subtractSignature(src.sig, tid);
-        const dst = this._getOrCreateArchetype(dstSig);
+        let dst = src.removeEdges.get(tid);
+        if (!dst) {
+            dst = this._getOrCreateArchetype(subtractSignature(src.sig, tid));
+            src.removeEdges.set(tid, dst);
+        }
 
         this._moveEntity(e, src, srcMeta.row, dst, (t: TypeId) => {
             // copy all but removed, but dstSig guarantees t != tid
@@ -541,24 +554,34 @@ export class World extends StatsOverlay implements WorldApi
         const { ctors, filter } = World._splitArgs(args);
         const { requested, needSorted, withoutSorted } = World._buildQueryTypeIds(ctors, filter);
 
-        function* gen(world: World): IterableIterator<any>
+        function* gen(world: World, archs: Archetype[]): IterableIterator<any>
         {
             world._iterateDepth++;
             try {
-                for (const a of world.archetypes) {
-                    if (!a) continue;
-                    if (!signatureHasAll(a.sig, needSorted)) continue;
+                for (const a of archs) {
                     if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
-
                     // Return columns in requested order (c1,c2,c3...).
                     const cols = new Array<any[]>(requested.length);
                     for (let i = 0; i < requested.length; i++) cols[i] = a.column<any>(requested[i]!);
 
-                    for (let row = 0; row < a.entities.length; row++) {
-                        const e = a.entities[row]!;
-                        const out: any = { e };
-                        for (let i = 0; i < cols.length; i++) out[`c${i + 1}`] = cols[i]![row];
-                        yield out;
+                    // Use per-arity branches so V8 sees stable object shapes.
+                    const ents = a.entities;
+                    const len  = ents.length;
+                    switch (cols.length) {
+                        case 1: { const a0 = cols[0]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r] }; break; }
+                        case 2: { const a0 = cols[0]!, a1 = cols[1]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r], c2: a1[r] }; break; }
+                        case 3: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r], c2: a1[r], c3: a2[r] }; break; }
+                        case 4: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r], c2: a1[r], c3: a2[r], c4: a3[r] }; break; }
+                        case 5: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!, a4 = cols[4]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r], c2: a1[r], c3: a2[r], c4: a3[r], c5: a4[r] }; break; }
+                        case 6: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!, a4 = cols[4]!, a5 = cols[5]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r], c2: a1[r], c3: a2[r], c4: a3[r], c5: a4[r], c6: a5[r] }; break; }
+                        default: {
+                            for (let r = 0; r < len; r++) {
+                                const out: any = { e: ents[r]! };
+                                for (let i = 0; i < cols.length; i++) out[`c${i + 1}`] = cols[i]![r];
+                                yield out;
+                            }
+                            break;
+                        }
                     }
                 }
             } finally {
@@ -568,7 +591,7 @@ export class World extends StatsOverlay implements WorldApi
 
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
-        return { [Symbol.iterator]() { return gen(self); } };
+        return { [Symbol.iterator]() { return gen(self, self._matchingArchetypes(needSorted)); } };
     }
 
     /**
@@ -586,15 +609,12 @@ export class World extends StatsOverlay implements WorldApi
         const { ctors, filter } = World._splitArgs(args);
         const { requested, needSorted, withoutSorted } = World._buildQueryTypeIds(ctors, filter);
 
-        function* gen(world: World): IterableIterator<any>
+        function* gen(world: World, archs: Archetype[]): IterableIterator<any>
         {
             world._iterateDepth++;
             try {
-                for (const a of world.archetypes) {
-                    if (!a) continue;
-                    if (!signatureHasAll(a.sig, needSorted)) continue;
+                for (const a of archs) {
                     if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
-
                     const out: any = { entities: a.entities };
                     for (let i = 0; i < requested.length; i++) {
                         out[`c${i + 1}`] = a.column<any>(requested[i]!);
@@ -608,7 +628,7 @@ export class World extends StatsOverlay implements WorldApi
 
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
-        return { [Symbol.iterator]() { return gen(self); } };
+        return { [Symbol.iterator]() { return gen(self, self._matchingArchetypes(needSorted)); } };
     }
 
     /**
@@ -634,28 +654,25 @@ export class World extends StatsOverlay implements WorldApi
         const ctors = rest as ComponentCtor<any>[];
 
         const { requested, needSorted, withoutSorted } = World._buildQueryTypeIds(ctors, filter);
+        const archs = this._matchingArchetypes(needSorted);
 
         this._iterateDepth++;
         try {
-            for (const a of this.archetypes) {
-                if (!a) continue;
-                if (!signatureHasAll(a.sig, needSorted)) continue;
+            for (const a of archs) {
                 if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
-
                 const cols = new Array<any[]>(requested.length);
                 for (let i = 0; i < requested.length; i++) cols[i] = a.column<any>(requested[i]!);
 
-                for (let row = 0; row < a.entities.length; row++) {
-                    const e = a.entities[row]!;
-                    switch (cols.length) {
-                        case 1: fn(e, cols[0]![row]); break;
-                        case 2: fn(e, cols[0]![row], cols[1]![row]); break;
-                        case 3: fn(e, cols[0]![row], cols[1]![row], cols[2]![row]); break;
-                        case 4: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row]); break;
-                        case 5: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row], cols[4]![row]); break;
-                        case 6: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row], cols[4]![row], cols[5]![row]); break;
-                        default: fn(e, ...cols.map(c => c[row])); break;
-                    }
+                const ents = a.entities;
+                const len  = ents.length;
+                switch (cols.length) {
+                    case 1: { const a0 = cols[0]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r]); break; }
+                    case 2: { const a0 = cols[0]!, a1 = cols[1]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r], a1[r]); break; }
+                    case 3: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r], a1[r], a2[r]); break; }
+                    case 4: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r], a1[r], a2[r], a3[r]); break; }
+                    case 5: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!, a4 = cols[4]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r], a1[r], a2[r], a3[r], a4[r]); break; }
+                    case 6: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!, a4 = cols[4]!, a5 = cols[5]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r], a1[r], a2[r], a3[r], a4[r], a5[r]); break; }
+                    default: for (let r = 0; r < len; r++) fn(ents[r]!, ...cols.map(c => c[r])); break;
                 }
             }
         } finally {
@@ -685,6 +702,7 @@ export class World extends StatsOverlay implements WorldApi
     {
         this.archetypes.length = 0;
         this.archByKey.clear();
+        this._queryCache.clear();
         // Archetype 0: empty signature
         const archetype0 = new Archetype(0, []);
         this.archetypes[0] = archetype0;
@@ -703,6 +721,28 @@ export class World extends StatsOverlay implements WorldApi
             return { ctors: args.slice(0, args.length - 1) as ComponentCtor<any>[], filter: last };
         }
         return { ctors: args as ComponentCtor<any>[], filter: undefined };
+    }
+
+    /**
+     * Returns the list of archetypes matching `needSorted` (a sorted, deduped TypeId array).
+     * Results are cached per query signature. Because archetypes are append-only, stale entries
+     * are extended incrementally — only newly-added archetypes are re-scanned.
+     */
+    private _matchingArchetypes(needSorted: TypeId[]): Archetype[]
+    {
+        const key = signatureKey(needSorted);
+        let entry = this._queryCache.get(key);
+        if (!entry) {
+            entry = { archs: [], checked: 0 };
+            this._queryCache.set(key, entry);
+        }
+        const total = this.archetypes.length;
+        for (let i = entry.checked; i < total; i++) {
+            const a = this.archetypes[i];
+            if (a && signatureHasAll(a.sig, needSorted)) entry.archs.push(a);
+        }
+        entry.checked = total;
+        return entry.archs;
     }
 
     private static _buildQueryTypeIds(
