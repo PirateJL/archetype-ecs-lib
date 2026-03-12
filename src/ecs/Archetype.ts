@@ -9,6 +9,14 @@ export class Archetype
     // Entity handles stored per row
     readonly entities: Entity[] = [];
 
+    /**
+     * Archetype graph edges: cache destination archetype for single-component add/remove transitions.
+     * Key: TypeId being added/removed. Value: destination Archetype after the transition.
+     * Populated lazily in World.add() / World.remove().
+     */
+    readonly addEdges = new Map<TypeId, Archetype>();
+    readonly removeEdges = new Map<TypeId, Archetype>();
+
     constructor(id: number, sig: Signature) {
         this.id = id;
         this.sig = sig;
