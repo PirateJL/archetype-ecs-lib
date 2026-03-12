@@ -8,6 +8,7 @@
     "build": "tsc",
     "lint": "eslint src/ test/",
     "lint:fix": "eslint src/ test/ --fix",
+    "bench": "jest --config jest.bench.config.js --verbose",
     "reload-packages": "rm -Rf node_modules && npm cache clean --force && npm ci"
   },
   "repository": {
