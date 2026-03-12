@@ -149,7 +149,7 @@ describe("Benchmarks", () => {
 
         run(`queryEach(Pos,Vel) x${N}`, N, () => {
             let sum = 0;
-            w.queryEach(Position, Velocity, (_e, pos, _vel) => { sum += pos.x; });
+            w.queryEach(Position, Velocity, (_e, pos) => { sum += pos.x; });
             if (sum < 0) throw new Error("prevent dead-code elimination");
         });
     });
