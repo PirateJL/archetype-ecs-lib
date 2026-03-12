@@ -560,6 +560,7 @@ export class World extends StatsOverlay implements WorldApi
             try {
                 for (const a of archs) {
                     if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
+
                     // Return columns in requested order (c1,c2,c3...).
                     const cols = new Array<any[]>(requested.length);
                     for (let i = 0; i < requested.length; i++) cols[i] = a.column<any>(requested[i]!);
@@ -615,6 +616,7 @@ export class World extends StatsOverlay implements WorldApi
             try {
                 for (const a of archs) {
                     if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
+
                     const out: any = { entities: a.entities };
                     for (let i = 0; i < requested.length; i++) {
                         out[`c${i + 1}`] = a.column<any>(requested[i]!);
@@ -660,6 +662,7 @@ export class World extends StatsOverlay implements WorldApi
         try {
             for (const a of archs) {
                 if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
+
                 const cols = new Array<any[]>(requested.length);
                 for (let i = 0; i < requested.length; i++) cols[i] = a.column<any>(requested[i]!);
 
