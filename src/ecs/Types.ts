@@ -29,6 +29,27 @@ export type ComponentCtor<T> =
 export type ComponentCtorBundleItem<T = any> = readonly [ComponentCtor<T>, T];
 
 /**
+ * A reusable, named group of component/value pairs.
+ *
+ * @example
+ * ```ts
+ * const PhysicsBundle = bundle([Position, { x: 0, y: 0 }], [Velocity, { x: 0, y: 0 }]);
+ * world.spawnMany(...PhysicsBundle);
+ * world.cmd().spawnMany(...PhysicsBundle);
+ * ```
+ */
+export type Bundle = readonly ComponentCtorBundleItem[];
+
+/**
+ * Create a typed, reusable bundle (a list of component/value pairs).
+ * Bundles can be spread into `spawnMany`, `addMany`, or `cmd().spawnMany`.
+ */
+export function bundle(...items: ComponentCtorBundleItem[]): Bundle
+{
+    return items;
+}
+
+/**
  * Internal numeric id for a component "type".
  * (We keep it numeric so signatures can be sorted quickly.)
  */
@@ -102,13 +123,13 @@ export type WorldSnapshot = Readonly<{
 export interface CommandsApi
 {
     spawn(init?: (e: Entity) => void): void;
-    spawnBundle(...items: ComponentCtorBundleItem[]): void;
+    spawnMany(...items: ComponentCtorBundleItem[]): void;
     despawn(e: Entity): void;
-    despawnBundle(entities: Entity[]): void;
+    despawnMany(entities: Entity[]): void;
     add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void;
-    addBundle(e: Entity, ...items: ComponentCtorBundleItem[]): void;
+    addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void;
     remove<T>(e: Entity, ctor: ComponentCtor<T>): void;
-    removeBundle(e: Entity, ...ctors: ComponentCtor<any>[]): void;
+    removeMany(e: Entity, ...ctors: ComponentCtor<any>[]): void;
     hasPending(): boolean;
 }
 
@@ -175,17 +196,17 @@ export interface WorldApi
     stats(): WorldStats;
     statsHistory(): WorldStatsHistory;
 
-    /** @internal Phase -> systems mapping for Schedule */
-    readonly _scheduleSystems: Map<string, SystemFn[]>;
-
-    /** @internal Returns the number of systems registered via addSystem() */
-    _getSystemCount(): number;
-
     /** Enables/disables profiling (system/phase timing). */
     setProfilingEnabled(enabled: boolean): void;
 
     /** Set how many frames of the profiling history to keep (default: 120). */
     setProfilingHistorySize(frames: number): void;
+
+    /**
+     * Destroy this world, releasing all archetypes, entities, resources, and event channels.
+     * Any further use of the world after calling this will throw.
+     */
+    destroy(): void;
 
     // deferred ops
     cmd(): CommandsApi;
