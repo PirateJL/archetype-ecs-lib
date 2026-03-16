@@ -236,7 +236,7 @@ function registerSnapshotCodecs(world: World): void {
 
 function queueSpawnItem(world: WorldApi, kind: ItemKind, x: number, speed: number): void {
     const radius = kind === "star" ? STAR_RADIUS : BOMB_RADIUS;
-    world.cmd().spawnBundle(
+    world.cmd().spawnMany(
         [Position, new Position(x, -radius - 4)],
         [Velocity, new Velocity(0, speed)],
         [Circle, new Circle(radius)],
