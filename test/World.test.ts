@@ -1,4 +1,4 @@
-import { World, WorldApi } from "../src";
+import { World, WorldApi, bundle } from "../src";
 
 class Position { constructor(public x = 0, public y = 0) {} }
 class Velocity { constructor(public dx = 0, public dy = 0) {} }
@@ -228,5 +228,61 @@ describe("World", () => {
         });
 
         expect(() => w.update(0)).toThrow("system error");
+    });
+
+    describe("world.destroy()", () => {
+        test("clears all entities, archetypes, and resources", () => {
+            const w = new World();
+            class Tag {}
+            w.spawnMany([Position, new Position(1, 2)]);
+            w.setResource(Tag, new Tag());
+
+            w.destroy();
+
+            expect(w.stats().aliveEntities).toBe(0);
+            expect(w.stats().archetypes).toBe(0);
+            expect(w.stats().resources).toBe(0);
+        });
+
+        test("throws when destroy() is called twice", () => {
+            const w = new World();
+            w.destroy();
+            expect(() => w.destroy()).toThrow("World.destroy() called on an already-destroyed world.");
+        });
+
+        test("throws on spawn() after destroy()", () => {
+            const w = new World();
+            w.destroy();
+            expect(() => w.spawn()).toThrow("Cannot use a destroyed World.");
+        });
+    });
+
+    describe("bundle()", () => {
+        test("creates a readonly array of component/value pairs", () => {
+            const pos = new Position(1, 2);
+            const vel = new Velocity(3, 4);
+            const b = bundle([Position, pos], [Velocity, vel]);
+            expect(b).toEqual([[Position, pos], [Velocity, vel]]);
+        });
+
+        test("can be spread into spawnMany", () => {
+            const w = new World();
+            const b = bundle([Position, new Position(5, 6)], [Velocity, new Velocity(1, 0)]);
+            const e = w.spawnMany(...b);
+            expect(w.get(e, Position)?.x).toBe(5);
+            expect(w.get(e, Velocity)?.dx).toBe(1);
+        });
+
+        test("can be spread into cmd().spawnMany", () => {
+            const w = new World();
+            const b = bundle([Position, new Position(7, 8)]);
+            w.cmd().spawnMany(...b);
+            w.flush();
+            let found = false;
+            for (const { c1 } of w.query(Position)) {
+                if (c1.x === 7) found = true;
+            }
+            expect(found).toBe(true);
+        });
     });
 });
