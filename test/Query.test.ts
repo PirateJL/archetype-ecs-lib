@@ -281,4 +281,142 @@ describe("Query", () => {
 
         expect(() => world.spawn()).not.toThrow();
     });
+
+    class Health { constructor(public hp = 100) {} }
+    class C4 { constructor(public v = 4) {} }
+    class C5 { constructor(public v = 5) {} }
+    class C6 { constructor(public v = 6) {} }
+
+    test("query with 4 components yields correct row shape", () => {
+        const w = new World();
+        const e = w.spawnMany(
+            [Position, new Position(1, 2)],
+            [Velocity, new Velocity(3, 4)],
+            [Health, new Health(100)],
+            [C4, new C4(44)],
+        );
+        const rows = Array.from(w.query(Position, Velocity, Health, C4));
+        expect(rows).toHaveLength(1);
+        expect(rows[0]!.e).toEqual(e);
+        expect(rows[0]!.c4.v).toBe(44);
+    });
+
+    test("query with 5 components yields correct row shape", () => {
+        const w = new World();
+        const e = w.spawnMany(
+            [Position, new Position(1, 2)],
+            [Velocity, new Velocity(3, 4)],
+            [Health, new Health(100)],
+            [C4, new C4(44)],
+            [C5, new C5(55)],
+        );
+        const rows = Array.from(w.query(Position, Velocity, Health, C4, C5));
+        expect(rows).toHaveLength(1);
+        expect(rows[0]!.e).toEqual(e);
+        expect(rows[0]!.c5.v).toBe(55);
+    });
+
+    test("query with 6 components yields correct row shape", () => {
+        const w = new World();
+        const e = w.spawnMany(
+            [Position, new Position(1, 2)],
+            [Velocity, new Velocity(3, 4)],
+            [Health, new Health(100)],
+            [C4, new C4(44)],
+            [C5, new C5(55)],
+            [C6, new C6(66)],
+        );
+        const rows = Array.from(w.query(Position, Velocity, Health, C4, C5, C6));
+        expect(rows).toHaveLength(1);
+        expect(rows[0]!.e).toEqual(e);
+        expect(rows[0]!.c6.v).toBe(66);
+    });
+
+    test("queryEach with 3 components calls fn with correct args", () => {
+        const w = new World();
+        w.spawnMany(
+            [Position, new Position(1, 2)],
+            [Velocity, new Velocity(3, 4)],
+            [Health, new Health(77)],
+        );
+        const results: number[] = [];
+        w.queryEach(Position, Velocity, Health, (_e, _p, _v, h) => results.push(h.hp));
+        expect(results).toEqual([77]);
+    });
+
+    test("queryEach with 4 components calls fn with correct args", () => {
+        const w = new World();
+        w.spawnMany(
+            [Position, new Position(1, 2)],
+            [Velocity, new Velocity(3, 4)],
+            [Health, new Health(10)],
+            [C4, new C4(44)],
+        );
+        const results: number[] = [];
+        w.queryEach(Position, Velocity, Health, C4, (_e, _p, _v, _h, c4) => results.push(c4.v));
+        expect(results).toEqual([44]);
+    });
+
+    test("queryEach with 5 components calls fn with correct args", () => {
+        const w = new World();
+        w.spawnMany(
+            [Position, new Position(1, 2)],
+            [Velocity, new Velocity(3, 4)],
+            [Health, new Health(10)],
+            [C4, new C4(44)],
+            [C5, new C5(55)],
+        );
+        const results: number[] = [];
+        w.queryEach(Position, Velocity, Health, C4, C5, (_e, _p, _v, _h, _c4, c5) => results.push(c5.v));
+        expect(results).toEqual([55]);
+    });
+
+    test("queryEach with 6 components calls fn with correct args", () => {
+        const w = new World();
+        w.spawnMany(
+            [Position, new Position(1, 2)],
+            [Velocity, new Velocity(3, 4)],
+            [Health, new Health(10)],
+            [C4, new C4(44)],
+            [C5, new C5(55)],
+            [C6, new C6(66)],
+        );
+        const results: number[] = [];
+        w.queryEach(Position, Velocity, Health, C4, C5, C6, (_e, _p, _v, _h, _c4, _c5, c6) => results.push(c6.v));
+        expect(results).toEqual([66]);
+    });
+
+    class C7 { constructor(public v = 7) {} }
+
+    test("query with 7+ components uses the default switch branch", () => {
+        const w = new World();
+        w.spawnMany(
+            [Position, new Position(1, 2)],
+            [Velocity, new Velocity(3, 4)],
+            [Health, new Health(10)],
+            [C4, new C4(44)],
+            [C5, new C5(55)],
+            [C6, new C6(66)],
+            [C7, new C7(77)],
+        );
+        const rows: any[] = Array.from((w.query as any)(Position, Velocity, Health, C4, C5, C6, C7));
+        expect(rows).toHaveLength(1);
+        expect(rows[0].c7.v).toBe(77);
+    });
+
+    test("queryEach with 7+ components uses the default switch branch", () => {
+        const w = new World();
+        w.spawnMany(
+            [Position, new Position(1, 2)],
+            [Velocity, new Velocity(3, 4)],
+            [Health, new Health(10)],
+            [C4, new C4(44)],
+            [C5, new C5(55)],
+            [C6, new C6(66)],
+            [C7, new C7(77)],
+        );
+        const results: number[] = [];
+        (w.queryEach as any)(Position, Velocity, Health, C4, C5, C6, C7, (_e: any, _p: any, _v: any, _h: any, _c4: any, _c5: any, _c6: any, c7: any) => results.push(c7.v));
+        expect(results).toEqual([77]);
+    });
 });
