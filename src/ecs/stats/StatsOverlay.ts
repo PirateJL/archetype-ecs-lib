@@ -35,7 +35,7 @@ export class StatsOverlay
 
     private opts: Required<Omit<StatsOverlayOptions, "parent">> & { parent: HTMLElement | null };
     private resizeObserver: ResizeObserver | null = null;
-    private isExpanded: boolean = true;
+    private isExpanded: boolean = false;
     private debugLoggingEnabled: boolean = false;
     private isInitialized: boolean = false;
     private debugingEnabled: boolean = false;
@@ -171,6 +171,10 @@ export class StatsOverlay
         this.root.appendChild(this.header);
         this.root.appendChild(this.content);
         this.opts.parent.appendChild(this.root);
+
+        // Start collapsed
+        this.content.style.display = "none";
+        this.toggleButton.textContent = "+";
 
         this.resizeCanvas();
         this.resizeObserver = new ResizeObserver(() => this.resizeCanvas());

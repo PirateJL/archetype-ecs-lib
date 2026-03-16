@@ -161,31 +161,39 @@ describe("StatsOverlay", () => {
     });
 
     describe("toggle()", () => {
-        it("collapses content when toggle button is clicked", () => {
+        it("starts collapsed when overlay is first shown", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
             world.setDebugging(true);
 
             const toggleBtn = container.querySelector("button:last-of-type");
-            expect(toggleBtn?.textContent).toBe("−");
-
-            toggleBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-
             const content = container.querySelector("div[style*='padding: 0px 8px 8px']") as HTMLElement;
             expect(content?.style.display).toBe("none");
             expect(toggleBtn?.textContent).toBe("+");
         });
 
-        it("expands content when toggle button is clicked again", () => {
+        it("expands content when toggle button is clicked", () => {
             world = new World({ statsOverlayOptions: { parent: container } });
             world.setDebugging(true);
 
             const toggleBtn = container.querySelector("button:last-of-type");
-            toggleBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true })); // collapse
             toggleBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true })); // expand
 
             const content = container.querySelector("div[style*='padding: 0px 8px 8px']") as HTMLElement;
             expect(content?.style.display).toBe("block");
             expect(toggleBtn?.textContent).toBe("−");
+        });
+
+        it("collapses content when toggle button is clicked again", () => {
+            world = new World({ statsOverlayOptions: { parent: container } });
+            world.setDebugging(true);
+
+            const toggleBtn = container.querySelector("button:last-of-type");
+            toggleBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true })); // expand
+            toggleBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true })); // collapse
+
+            const content = container.querySelector("div[style*='padding: 0px 8px 8px']") as HTMLElement;
+            expect(content?.style.display).toBe("none");
+            expect(toggleBtn?.textContent).toBe("+");
         });
     });
 
