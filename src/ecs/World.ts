@@ -60,6 +60,8 @@ export class World extends StatsOverlay implements WorldApi
     /** @internal Phase -> systems mapping for Schedule */
     public readonly _scheduleSystems = new Map<string, SystemFn[]>();
 
+    private _destroyed = false;
+
     constructor(options?: {statsOverlayOptions: StatsOverlayOptions})
     {
         super(options?.statsOverlayOptions);
@@ -220,6 +222,20 @@ export class World extends StatsOverlay implements WorldApi
         }
     }
 
+    public destroy(): void
+    {
+        if (this._destroyed) throw new Error("World.destroy() called on an already-destroyed world.");
+        this._destroyed = true;
+        this.archetypes.length = 0;
+        this.archByKey.clear();
+        this._queryCache.clear();
+        this.systems.length = 0;
+        this._scheduleSystems.clear();
+        this.resources.clear();
+        this.eventChannels.clear();
+        this.entities.meta.length = 0;
+    }
+
     //#region ---------- Snapshot / Restore ----------
     public registerComponentSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this
     {
@@ -340,6 +356,7 @@ export class World extends StatsOverlay implements WorldApi
     //#region ---------- Entity lifecycle ----------
     public spawn(): Entity
     {
+        if (this._destroyed) throw new Error("Cannot use a destroyed World.");
         this._ensureNotIterating("spawn");
         const entity = this.entities.create();
         // place in archetype 0

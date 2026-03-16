@@ -15,7 +15,7 @@ export class Commands implements CommandsApi
         this.q.push({ k: "spawn", init });
     }
 
-    public spawnBundle(...items: ComponentCtorBundleItem[]): void
+    public spawnMany(...items: ComponentCtorBundleItem[]): void
     {
         this.spawn((e) => {
             // Applied during the same flush thanks to World.flush draining until empty.
@@ -28,7 +28,7 @@ export class Commands implements CommandsApi
         this.q.push({ k: "despawn", e });
     }
 
-    public despawnBundle(entities: Entity[]): void
+    public despawnMany(entities: Entity[]): void
     {
         for (const e of entities) this.despawn(e);
     }
@@ -38,7 +38,7 @@ export class Commands implements CommandsApi
         this.q.push({ k: "add", e, ctor, value });
     }
 
-    public addBundle(e: Entity, ...items: ComponentCtorBundleItem[]): void
+    public addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void
     {
         for (const [ctor, value] of items) this.add(e, ctor as any, value as any);
     }
@@ -48,7 +48,7 @@ export class Commands implements CommandsApi
         this.q.push({ k: "remove", e, ctor });
     }
 
-    public removeBundle(e: Entity, ...ctors: ComponentCtor<any>[]): void
+    public removeMany(e: Entity, ...ctors: ComponentCtor<any>[]): void
     {
         for (const ctor of ctors) this.remove(e, ctor);
     }

@@ -90,7 +90,7 @@ export class Schedule {
     add(world: WorldApi, phase: string, fn: SystemFn):
         { after: (otherPhase: string) => Schedule; before: (otherPhase: string) => Schedule; }
     {
-        const phases = world._scheduleSystems;
+        const phases = (world as World)._scheduleSystems;
         const list = phases.get(phase) ?? [];
         list.push(fn);
         phases.set(phase, list);
@@ -152,7 +152,8 @@ export class Schedule {
             worldInstance._warnAboutLifecycleConflict("Schedule.run");
         }
 
-        const phases = phaseOrder ?? this.phaseOrder ?? this._computePhaseOrder(world);
+        const scheduleSystems = worldInstance._scheduleSystems;
+        const phases = phaseOrder ?? this.phaseOrder ?? this._computePhaseOrder(scheduleSystems);
         if (!phases || phases.length === 0) {
             throw new Error('Schedule.run requires a phase order (pass it as an argument or call schedule.setOrder([...]))');
         }
@@ -162,7 +163,7 @@ export class Schedule {
         try {
             for (const phase of phases) {
                 const phaseStart = performance.now();
-                const list = world._scheduleSystems.get(phase);
+                const list = scheduleSystems.get(phase);
 
                 // Run systems only if they exist for this phase
                 if (list) {
@@ -231,15 +232,13 @@ export class Schedule {
      * - phases explicitly registered via `add()` keep insertion order when unconstrained
      * - remaining ties fall back to lexicographic order
      *
-     * @param world World instance to get phases from.
+     * @param phases Phase -> systems mapping from the World.
      * @returns A valid phase order that satisfies all constraints.
      * @throws If constraints contain a cycle.
      * @internal
      */
-    private _computePhaseOrder(world: WorldApi): string[]
+    private _computePhaseOrder(phases: Map<string, SystemFn[]>): string[]
     {
-        const phases = world._scheduleSystems;
-
         // Collect all known phases (defined or referenced by constraints)
         const all = new Set<string>();
         for (const k of phases.keys()) all.add(k);
