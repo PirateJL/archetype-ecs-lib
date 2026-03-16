@@ -345,6 +345,36 @@ describe("Schedule", () => {
         expect(() => sched.run(world, 0.016, ["sim"])).toThrow("Lifecycle conflict");
     });
 
+    test("add() reuses existing phase list when same phase is registered twice", () => {
+        const sched = new Schedule();
+        const world = makeWorldStub({ hasPending: false });
+        const calls: string[] = [];
+
+        sched.add(world, "sim", () => calls.push("first"));
+        sched.add(world, "sim", () => calls.push("second"));
+
+        sched.run(world, 0.016, ["sim"]);
+        expect(calls).toEqual(["first", "second"]);
+    });
+
+    test("_addPhaseConstraint reuses existing edge set when same 'before' phase has multiple targets", () => {
+        const sched = new Schedule();
+        const world = makeWorldStub({ hasPending: false });
+        const calls: string[] = [];
+
+        sched.add(world, "a", () => calls.push("a"));
+        sched.add(world, "b", () => calls.push("b"));
+        sched.add(world, "c", () => calls.push("c"));
+
+        // Two constraints from "a": a -> b and a -> c
+        sched.add(world, "b", () => {}).after("a");
+        sched.add(world, "c", () => {}).after("a");
+
+        sched.run(world, 0.016);
+        expect(calls.indexOf("a")).toBeLessThan(calls.indexOf("b"));
+        expect(calls.indexOf("a")).toBeLessThan(calls.indexOf("c"));
+    });
+
     test("_profEndFrame and updateOverlay are called even when a system throws", () => {
         const sched = new Schedule();
         const world = makeWorldStub({ hasPending: false });

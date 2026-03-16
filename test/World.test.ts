@@ -66,6 +66,33 @@ describe("World", () => {
         expect(w.get(e, Health)).toBeUndefined();
     });
 
+    it("addMany updates in-place when a component already exists and adds new ones atomically", () => {
+        const w = new World();
+        const e = w.spawnMany([Position, new Position(1, 2)], [Velocity, new Velocity(3, 4)]);
+
+        // Position already exists (in-place update), Health is new
+        w.addMany(e, [Position, new Position(9, 9)], [Health, new Health(50)]);
+
+        expect(w.get(e, Position)).toEqual({ x: 9, y: 9 });
+        expect(w.get(e, Velocity)).toEqual({ dx: 3, dy: 4 }); // unchanged
+        expect(w.get(e, Health)!.hp).toBe(50);
+    });
+
+    it("removeMany keeps remaining components intact", () => {
+        const w = new World();
+        const e = w.spawnMany(
+            [Position, new Position(1, 2)],
+            [Velocity, new Velocity(3, 4)],
+            [Health, new Health(100)],
+        );
+
+        w.removeMany(e, Velocity); // remove only Velocity, keep Position + Health
+
+        expect(w.has(e, Velocity)).toBe(false);
+        expect(w.get(e, Position)).toEqual({ x: 1, y: 2 }); // still there, copied via pick
+        expect(w.get(e, Health)!.hp).toBe(100);              // still there, copied via pick
+    });
+
     it("add overwrites in-place if component already exists", () => {
         const w = new World();
         const e = w.spawn();
