@@ -19,8 +19,8 @@ class Renderable { constructor(public kind: "cube" | "ship" = "cube") {} }
 
 ```ts
 const e = world.spawnMany(
-  new Position(0, 0, 0),
-  new Renderable("cube")
+  [Position, new Position(0, 0, 0)],
+  [Renderable, new Renderable("cube")],
 )
 ```
 

@@ -88,6 +88,18 @@ if (world.isAlive(e)) { ... }
 
 ---
 
+### `destroy(): void`
+
+Releases all world state: archetypes, entities, resources, event channels, and systems. Any further structural use of the world after this call will throw.
+
+```ts
+world.destroy();
+```
+
+Intended for multi-world setups and hot-reload scenarios where you need to fully tear down a world instance.
+
+---
+
 ## Component API
 
 All component types are identified by **constructor identity**.

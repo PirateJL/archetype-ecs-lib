@@ -42,22 +42,29 @@ Enqueues creation of a new entity.
 
 ---
 
-### `spawnBundle(...items: ComponentCtorBundleItem[])`
+### `spawnMany(...items: ComponentCtorBundleItem[])`
 
 Queues the creation of a new entity, along with its initial components, and applies everything on the next flush (within the same flush cycle).
 
 * `...items: ComponentCtorBundleItem[]` is the list of components to add to the newly created entity.
 * Internally, it iterates over the items and calls `add(e, ctor, value)` for each component.
 
+```ts
+world.cmd().spawnMany(
+    [Position, new Position(0, 0)],
+    [Velocity, new Velocity(1, 0)],
+);
+```
+
 ---
 
 ### `despawn(e: Entity)`
 
-Enqueues removal of an entity. 
+Enqueues removal of an entity.
 
 ---
 
-### `despawnBundle(entities: Entity[])`
+### `despawnMany(entities: Entity[])`
 
 Enqueues the destruction of multiple entities. The actual removals are applied when commands are flushed.
 
@@ -68,11 +75,11 @@ Enqueues the destruction of multiple entities. The actual removals are applied w
 
 ### `add(e, ctor, value)`
 
-Enqueues adding a component to an entity. This is a **structural** change (it may move the entity between archetypes), which is why it is commonly deferred. 
+Enqueues adding a component to an entity. This is a **structural** change (it may move the entity between archetypes), which is why it is commonly deferred.
 
 ---
 
-### `addBundle(e: Entity, ...items: ComponentCtorBundleItem[])`
+### `addMany(e: Entity, ...items: ComponentCtorBundleItem[])`
 
 Enqueues adding multiple components to an existing entity. All component adds are applied on flush.
 
@@ -84,17 +91,39 @@ Enqueues adding multiple components to an existing entity. All component adds ar
 
 ### `remove(e, ctor)`
 
-Enqueues removing a component from an entity. This is also a **structural** change. 
+Enqueues removing a component from an entity. This is also a **structural** change.
 
 ---
 
-### `removeBundle(e: Entity, ...ctors: ComponentCtor<any>[])`
+### `removeMany(e: Entity, ...ctors: ComponentCtor<any>[])`
 
 Enqueues removal of multiple component types from an entity. The removals are applied on flush.
 
 * `e: Entity` is the target entity.
 * `...ctors: ComponentCtor<any>[]` is the list of component constructors (types) to remove.
 * Internally, it loops through the ctors and calls `remove(e, ctor)` for each one.
+
+---
+
+## Reusable bundles
+
+Use the `bundle()` helper to define a named, reusable group of components:
+
+```ts
+import { bundle } from "archetype-ecs-lib";
+
+const PhysicsBundle = bundle(
+    [Position, new Position(0, 0)],
+    [Velocity, new Velocity(0, 0)],
+);
+
+// Spread into cmd or direct world calls
+world.cmd().spawnMany(...PhysicsBundle);
+world.spawnMany(...PhysicsBundle);
+world.cmd().addMany(e, ...PhysicsBundle);
+```
+
+`bundle()` simply returns a typed `readonly ComponentCtorBundleItem[]`, avoiding the need for `as const` casts.
 
 ---
 

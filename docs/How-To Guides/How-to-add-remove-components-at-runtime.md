@@ -16,7 +16,7 @@ world.add(e, Velocity, new Velocity(1, 0));
 
 // Or add many at once
 const z = world.spawn();
-world.addMany(z, [new Position(0, 0), new Velocity(1, 0)])
+world.addMany(z, [Position, new Position(0, 0)], [Velocity, new Velocity(1, 0)])
 
 world.remove(e, Velocity);
 ```
@@ -34,7 +34,7 @@ world.addSystem((w: any) => {
 // Or remove many at once
 world.addSystem((w: any) => {
   for (const { e, c1: pos } of w.query(Position, Velocity)) {
-    if (pos.x < 0)  w.cmd().removeMny(e, Position, Velocity);
+    if (pos.x < 0)  w.cmd().removeMany(e, Position, Velocity);
   }
 });
 
