@@ -134,9 +134,12 @@ const inputPhase: SystemFn = (w: WorldApi) => {
       const vx = (Math.random() - 0.5) * 6;
       const vz = (Math.random() - 0.5) * 6;
 
-      cmd.addBundle(
+      cmd.addMany(
         e,
-        [new Position(x, 0.5, z), new Velocity(vx, 0, vz), new Lifetime(2.0 + Math.random() * 2.0), new Renderable("cube")]
+        [Position, new Position(x, 0.5, z)],
+        [Velocity, new Velocity(vx, 0, vz)],
+        [Lifetime, new Lifetime(2.0 + Math.random() * 2.0)],
+        [Renderable, new Renderable("cube")],
       );
     });
   }
