@@ -25,13 +25,13 @@ describe("Commands", () => {
         expect(ops[0]).toEqual({ k: "spawn", init });
     });
 
-    test("spawnBundle() enqueues a spawn command (first drain) and enqueues adds when init is executed (second drain)", () => {
+    test("spawnMany() enqueues a spawn command (first drain) and enqueues adds when init is executed (second drain)", () => {
         const c = new Commands();
 
         const p = new Position(1, 2);
         const v = new Velocity(3, 4);
 
-        c.spawnBundle([Position, p], [Velocity, v]);
+        c.spawnMany([Position, p], [Velocity, v]);
 
         // 1st drain: only the spawn op
         const ops1 = c.drain();
@@ -57,10 +57,10 @@ describe("Commands", () => {
         ]);
     });
 
-    test("spawnBundle() with no items still spawns and init enqueues nothing", () => {
+    test("spawnMany() with no items still spawns and init enqueues nothing", () => {
         const c = new Commands();
 
-        c.spawnBundle();
+        c.spawnMany();
 
         const ops1 = c.drain();
         expect(ops1).toHaveLength(1);
@@ -85,13 +85,13 @@ describe("Commands", () => {
         expect(ops).toEqual([{ k: "despawn", e }]);
     });
 
-    test("despawnBundle() enqueues one despawn per entity (in order)", () => {
+    test("despawnMany() enqueues one despawn per entity (in order)", () => {
         const c = new Commands();
         const e1: Entity = { id: 1, gen: 0 };
         const e2: Entity = { id: 2, gen: 0 };
         const e3: Entity = { id: 3, gen: 0 };
 
-        c.despawnBundle([e1, e2, e3]);
+        c.despawnMany([e1, e2, e3]);
 
         const ops = c.drain();
         expect(ops).toEqual([
@@ -101,9 +101,9 @@ describe("Commands", () => {
         ]);
     });
 
-    test("despawnBundle() with empty list enqueues nothing", () => {
+    test("despawnMany() with empty list enqueues nothing", () => {
         const c = new Commands();
-        c.despawnBundle([]);
+        c.despawnMany([]);
         expect(c.drain()).toEqual([]);
     });
 
@@ -118,14 +118,14 @@ describe("Commands", () => {
         expect(ops).toEqual([{ k: "add", e, ctor: Position, value: p }]);
     });
 
-    test("addBundle() enqueues multiple add commands (in order)", () => {
+    test("addMany() enqueues multiple add commands (in order)", () => {
         const c = new Commands();
         const e: Entity = { id: 1, gen: 0 };
         const p = new Position(1, 2);
         const v = new Velocity(3, 4);
         const f = new Frozen("test");
 
-        c.addBundle(e, [Position, p], [Velocity, v], [Frozen, f]);
+        c.addMany(e, [Position, p], [Velocity, v], [Frozen, f]);
 
         const ops = c.drain();
         expect(ops).toEqual([
@@ -135,11 +135,11 @@ describe("Commands", () => {
         ]);
     });
 
-    test("addBundle() with no items enqueues nothing", () => {
+    test("addMany() with no items enqueues nothing", () => {
         const c = new Commands();
         const e: Entity = { id: 1, gen: 0 };
 
-        c.addBundle(e);
+        c.addMany(e);
         expect(c.drain()).toEqual([]);
     });
 
@@ -153,11 +153,11 @@ describe("Commands", () => {
         expect(ops).toEqual([{ k: "remove", e, ctor: Velocity }]);
     });
 
-    test("removeBundle() enqueues multiple remove commands (in order)", () => {
+    test("removeMany() enqueues multiple remove commands (in order)", () => {
         const c = new Commands();
         const e: Entity = { id: 1, gen: 0 };
 
-        c.removeBundle(e, Velocity, Frozen);
+        c.removeMany(e, Velocity, Frozen);
 
         const ops = c.drain();
         expect(ops).toEqual([
@@ -166,11 +166,11 @@ describe("Commands", () => {
         ]);
     });
 
-    test("removeBundle() with no ctors enqueues nothing", () => {
+    test("removeMany() with no ctors enqueues nothing", () => {
         const c = new Commands();
         const e: Entity = { id: 1, gen: 0 };
 
-        c.removeBundle(e);
+        c.removeMany(e);
         expect(c.drain()).toEqual([]);
     });
 

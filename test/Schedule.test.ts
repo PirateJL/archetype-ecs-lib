@@ -47,13 +47,13 @@ describe("Schedule", () => {
 
             cmd: () => ({
                 spawn: jest.fn(),
-                spawnBundle: jest.fn(),
+                spawnMany: jest.fn(),
                 despawn: jest.fn(),
-                despawnBundle: jest.fn(),
+                despawnMany: jest.fn(),
                 add: jest.fn(),
-                addBundle: jest.fn(),
+                addMany: jest.fn(),
                 remove: jest.fn(),
-                removeBundle: jest.fn(),
+                removeMany: jest.fn(),
                 hasPending: jest.fn(() => hasPending),
             }),
 
