@@ -47,7 +47,7 @@ describe("Schedule", () => {
 
             cmd: () => ({
                 spawn: jest.fn(),
-                spawnMany: jest.fn(),
+                spawnWith: jest.fn(),
                 despawn: jest.fn(),
                 despawnMany: jest.fn(),
                 add: jest.fn(),
@@ -58,7 +58,7 @@ describe("Schedule", () => {
             }),
 
             spawn: () => ({ id: 0, gen: 0 }),
-            spawnMany: () => ({ id: 1, gen: 0 }),
+            spawnWith: () => ({ id: 1, gen: 0 }),
             despawn: jest.fn(),
             despawnMany: jest.fn(),
             isAlive: jest.fn(() => true),

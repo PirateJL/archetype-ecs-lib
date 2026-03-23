@@ -18,7 +18,7 @@ class Renderable { constructor(public kind: "cube" | "ship" = "cube") {} }
 3. Spawn entities in ECS:
 
 ```ts
-const e = world.spawnMany(
+const e = world.spawnWith(
   [Position, new Position(0, 0, 0)],
   [Renderable, new Renderable("cube")],
 )

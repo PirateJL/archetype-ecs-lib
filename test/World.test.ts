@@ -26,7 +26,7 @@ describe("World", () => {
 
     it("spawn an entity alive with many components", () => {
         const w = new World();
-        const e = w.spawnMany(
+        const e = w.spawnWith(
             [Position, new Position()],
             [Velocity, new Velocity()]
         );
@@ -68,7 +68,7 @@ describe("World", () => {
 
     it("addMany updates in-place when a component already exists and adds new ones atomically", () => {
         const w = new World();
-        const e = w.spawnMany([Position, new Position(1, 2)], [Velocity, new Velocity(3, 4)]);
+        const e = w.spawnWith([Position, new Position(1, 2)], [Velocity, new Velocity(3, 4)]);
 
         // Position already exists (in-place update), Health is new
         w.addMany(e, [Position, new Position(9, 9)], [Health, new Health(50)]);
@@ -80,7 +80,7 @@ describe("World", () => {
 
     it("removeMany keeps remaining components intact", () => {
         const w = new World();
-        const e = w.spawnMany(
+        const e = w.spawnWith(
             [Position, new Position(1, 2)],
             [Velocity, new Velocity(3, 4)],
             [Health, new Health(100)],
@@ -180,14 +180,14 @@ describe("World", () => {
         }).toThrow(/Cannot do structural change \(spawn\)/i);
     });
 
-    test("spawnMany is forbidden during query iteration", () => {
+    test("spawnWith is forbidden during query iteration", () => {
         const w = new World();
         const e = w.spawn();
         w.add(e, Position, new Position(1, 2));
 
         expect(() => {
             w.queryEach(Position, () => {
-                w.spawnMany([Velocity, new Velocity()]);
+                w.spawnWith([Velocity, new Velocity()]);
             });
         }).toThrow(/Cannot do structural change \(spawn\)/i);
     });
@@ -210,7 +210,7 @@ describe("World", () => {
 
     test("update() flushes queued commands successfully", () => {
         const w = new World();
-        const e = w.spawnMany([Position, new Position(1, 1)], [Velocity, new Velocity(1, 1)])
+        const e = w.spawnWith([Position, new Position(1, 1)], [Velocity, new Velocity(1, 1)])
 
         w.addSystem((world: WorldApi) => {
             world.cmd().remove(e, Velocity);
@@ -261,7 +261,7 @@ describe("World", () => {
         test("clears all entities, archetypes, and resources", () => {
             const w = new World();
             class Tag {}
-            w.spawnMany([Position, new Position(1, 2)]);
+            w.spawnWith([Position, new Position(1, 2)]);
             w.setResource(Tag, new Tag());
 
             w.destroy();
@@ -292,18 +292,18 @@ describe("World", () => {
             expect(b).toEqual([[Position, pos], [Velocity, vel]]);
         });
 
-        test("can be spread into spawnMany", () => {
+        test("can be spread into spawnWith", () => {
             const w = new World();
             const b = bundle([Position, new Position(5, 6)], [Velocity, new Velocity(1, 0)]);
-            const e = w.spawnMany(...b);
+            const e = w.spawnWith(...b);
             expect(w.get(e, Position)?.x).toBe(5);
             expect(w.get(e, Velocity)?.dx).toBe(1);
         });
 
-        test("can be spread into cmd().spawnMany", () => {
+        test("can be spread into cmd().spawnWith", () => {
             const w = new World();
             const b = bundle([Position, new Position(7, 8)]);
-            w.cmd().spawnMany(...b);
+            w.cmd().spawnWith(...b);
             w.flush();
             let found = false;
             for (const { c1 } of w.query(Position)) {

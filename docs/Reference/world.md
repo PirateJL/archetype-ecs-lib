@@ -46,7 +46,7 @@ const e = world.spawn();
 
 ---
 
-### `spawnMany(...items: ComponentCtorBundleItem[]): Entity`
+### `spawnWith(...items: ComponentCtorBundleItem[]): Entity`
 
 Creates a new entity along with its initial components immediately.
 

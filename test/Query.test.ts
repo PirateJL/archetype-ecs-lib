@@ -289,7 +289,7 @@ describe("Query", () => {
 
     test("query with 4 components yields correct row shape", () => {
         const w = new World();
-        const e = w.spawnMany(
+        const e = w.spawnWith(
             [Position, new Position(1, 2)],
             [Velocity, new Velocity(3, 4)],
             [Health, new Health(100)],
@@ -303,7 +303,7 @@ describe("Query", () => {
 
     test("query with 5 components yields correct row shape", () => {
         const w = new World();
-        const e = w.spawnMany(
+        const e = w.spawnWith(
             [Position, new Position(1, 2)],
             [Velocity, new Velocity(3, 4)],
             [Health, new Health(100)],
@@ -318,7 +318,7 @@ describe("Query", () => {
 
     test("query with 6 components yields correct row shape", () => {
         const w = new World();
-        const e = w.spawnMany(
+        const e = w.spawnWith(
             [Position, new Position(1, 2)],
             [Velocity, new Velocity(3, 4)],
             [Health, new Health(100)],
@@ -334,7 +334,7 @@ describe("Query", () => {
 
     test("queryEach with 3 components calls fn with correct args", () => {
         const w = new World();
-        w.spawnMany(
+        w.spawnWith(
             [Position, new Position(1, 2)],
             [Velocity, new Velocity(3, 4)],
             [Health, new Health(77)],
@@ -346,7 +346,7 @@ describe("Query", () => {
 
     test("queryEach with 4 components calls fn with correct args", () => {
         const w = new World();
-        w.spawnMany(
+        w.spawnWith(
             [Position, new Position(1, 2)],
             [Velocity, new Velocity(3, 4)],
             [Health, new Health(10)],
@@ -359,7 +359,7 @@ describe("Query", () => {
 
     test("queryEach with 5 components calls fn with correct args", () => {
         const w = new World();
-        w.spawnMany(
+        w.spawnWith(
             [Position, new Position(1, 2)],
             [Velocity, new Velocity(3, 4)],
             [Health, new Health(10)],
@@ -373,7 +373,7 @@ describe("Query", () => {
 
     test("queryEach with 6 components calls fn with correct args", () => {
         const w = new World();
-        w.spawnMany(
+        w.spawnWith(
             [Position, new Position(1, 2)],
             [Velocity, new Velocity(3, 4)],
             [Health, new Health(10)],
@@ -390,7 +390,7 @@ describe("Query", () => {
 
     test("query with 7+ components uses the default switch branch", () => {
         const w = new World();
-        w.spawnMany(
+        w.spawnWith(
             [Position, new Position(1, 2)],
             [Velocity, new Velocity(3, 4)],
             [Health, new Health(10)],
@@ -406,7 +406,7 @@ describe("Query", () => {
 
     test("queryEach with 7+ components uses the default switch branch", () => {
         const w = new World();
-        w.spawnMany(
+        w.spawnWith(
             [Position, new Position(1, 2)],
             [Velocity, new Velocity(3, 4)],
             [Health, new Health(10)],

@@ -86,12 +86,12 @@ describe("Benchmarks", () => {
         });
     });
 
-    it("spawnMany (bundle) 2 components: 50k entities", () => {
+    it("spawnWith (bundle) 2 components: 50k entities", () => {
         const N = 50_000;
-        run(`spawnMany([Pos,Vel]) x${N}`, N, () => {
+        run(`spawnWith([Pos,Vel]) x${N}`, N, () => {
             const w = new World();
             for (let i = 0; i < N; i++) {
-                w.spawnMany([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
+                w.spawnWith([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
             }
         });
     });
@@ -101,7 +101,7 @@ describe("Benchmarks", () => {
         const w = new World();
         const entities: Entity[] = [];
         for (let i = 0; i < N; i++) {
-            entities.push(w.spawnMany([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]));
+            entities.push(w.spawnWith([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]));
         }
 
         run(`add+remove Health x${N}`, N, () => {
@@ -114,7 +114,7 @@ describe("Benchmarks", () => {
         const N = 50_000;
         const w = new World();
         for (let i = 0; i < N; i++) {
-            w.spawnMany([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
+            w.spawnWith([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
         }
 
         run(`query(Pos,Vel) x${N}`, N, () => {
@@ -128,7 +128,7 @@ describe("Benchmarks", () => {
         const N = 50_000;
         const w = new World();
         for (let i = 0; i < N; i++) {
-            w.spawnMany([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
+            w.spawnWith([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
         }
 
         run(`queryTables(Pos,Vel) x${N}`, N, () => {
@@ -144,7 +144,7 @@ describe("Benchmarks", () => {
         const N = 50_000;
         const w = new World();
         for (let i = 0; i < N; i++) {
-            w.spawnMany([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
+            w.spawnWith([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
         }
 
         run(`queryEach(Pos,Vel) x${N}`, N, () => {
@@ -159,7 +159,7 @@ describe("Benchmarks", () => {
         const FRAMES = 10;
         const w = new World();
         for (let i = 0; i < N; i++) {
-            w.spawnMany([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
+            w.spawnWith([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
         }
 
         run(`query(Pos,Vel) x${N} x${FRAMES} frames`, N * FRAMES, () => {
@@ -175,10 +175,10 @@ describe("Benchmarks", () => {
         const N = 50_000;
         const w = new World();
         for (let i = 0; i < N / 4; i++) {
-            w.spawnMany([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
-            w.spawnMany([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)], [Health, new Health(100)]);
-            w.spawnMany([Position, new Position(i, i)], [Health, new Health(100)]);
-            w.spawnMany([Position, new Position(i, i)]);
+            w.spawnWith([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)]);
+            w.spawnWith([Position, new Position(i, i)], [Velocity, new Velocity(1, 0)], [Health, new Health(100)]);
+            w.spawnWith([Position, new Position(i, i)], [Health, new Health(100)]);
+            w.spawnWith([Position, new Position(i, i)]);
         }
 
         run(`queryEach(Pos) across 4 archetypes x${N}`, N, () => {
@@ -193,7 +193,7 @@ describe("Benchmarks", () => {
         run(`despawn x${N}`, N, () => {
             const w = new World();
             const es: Entity[] = [];
-            for (let i = 0; i < N; i++) es.push(w.spawnMany([Position, new Position(i, i)]));
+            for (let i = 0; i < N; i++) es.push(w.spawnWith([Position, new Position(i, i)]));
             for (const e of es) w.despawn(e);
         });
     });

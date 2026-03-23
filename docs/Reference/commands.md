@@ -42,7 +42,7 @@ Enqueues creation of a new entity.
 
 ---
 
-### `spawnMany(...items: ComponentCtorBundleItem[])`
+### `spawnWith(...items: ComponentCtorBundleItem[])`
 
 Queues the creation of a new entity, along with its initial components, and applies everything on the next flush (within the same flush cycle).
 
@@ -50,7 +50,7 @@ Queues the creation of a new entity, along with its initial components, and appl
 * Internally, it iterates over the items and calls `add(e, ctor, value)` for each component.
 
 ```ts
-world.cmd().spawnMany(
+world.cmd().spawnWith(
     [Position, new Position(0, 0)],
     [Velocity, new Velocity(1, 0)],
 );
@@ -118,8 +118,8 @@ const PhysicsBundle = bundle(
 );
 
 // Spread into cmd or direct world calls
-world.cmd().spawnMany(...PhysicsBundle);
-world.spawnMany(...PhysicsBundle);
+world.cmd().spawnWith(...PhysicsBundle);
+world.spawnWith(...PhysicsBundle);
 world.cmd().addMany(e, ...PhysicsBundle);
 ```
 

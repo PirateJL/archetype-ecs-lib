@@ -15,7 +15,7 @@ export class Commands implements CommandsApi
         this.q.push({ k: "spawn", init });
     }
 
-    public spawnMany(...items: ComponentCtorBundleItem[]): void
+    public spawnWith(...items: ComponentCtorBundleItem[]): void
     {
         this.spawn((e) => {
             // Applied during the same flush thanks to World.flush draining until empty.

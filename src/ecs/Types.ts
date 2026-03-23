@@ -34,15 +34,15 @@ export type ComponentCtorBundleItem<T = any> = readonly [ComponentCtor<T>, T];
  * @example
  * ```ts
  * const PhysicsBundle = bundle([Position, { x: 0, y: 0 }], [Velocity, { x: 0, y: 0 }]);
- * world.spawnMany(...PhysicsBundle);
- * world.cmd().spawnMany(...PhysicsBundle);
+ * world.spawnWith(...PhysicsBundle);
+ * world.cmd().spawnWith(...PhysicsBundle);
  * ```
  */
 export type Bundle = readonly ComponentCtorBundleItem[];
 
 /**
  * Create a typed, reusable bundle (a list of component/value pairs).
- * Bundles can be spread into `spawnMany`, `addMany`, or `cmd().spawnMany`.
+ * Bundles can be spread into `spawnWith`, `addMany`, or `cmd().spawnWith`.
  */
 export function bundle(...items: ComponentCtorBundleItem[]): Bundle
 {
@@ -123,7 +123,7 @@ export type WorldSnapshot = Readonly<{
 export interface CommandsApi
 {
     spawn(init?: (e: Entity) => void): void;
-    spawnMany(...items: ComponentCtorBundleItem[]): void;
+    spawnWith(...items: ComponentCtorBundleItem[]): void;
     despawn(e: Entity): void;
     despawnMany(entities: Entity[]): void;
     add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void;
@@ -291,7 +291,7 @@ export interface WorldApi
 
     //#region ----- entity lifecycle -----
     spawn(): Entity;
-    spawnMany(...items: ComponentCtorBundleItem[]): Entity;
+    spawnWith(...items: ComponentCtorBundleItem[]): Entity;
     despawn(e: Entity): void;
     despawnMany(entities: Entity[]): void;
     isAlive(e: Entity): boolean;

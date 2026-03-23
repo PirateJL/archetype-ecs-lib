@@ -25,13 +25,13 @@ describe("Commands", () => {
         expect(ops[0]).toEqual({ k: "spawn", init });
     });
 
-    test("spawnMany() enqueues a spawn command (first drain) and enqueues adds when init is executed (second drain)", () => {
+    test("spawnWith() enqueues a spawn command (first drain) and enqueues adds when init is executed (second drain)", () => {
         const c = new Commands();
 
         const p = new Position(1, 2);
         const v = new Velocity(3, 4);
 
-        c.spawnMany([Position, p], [Velocity, v]);
+        c.spawnWith([Position, p], [Velocity, v]);
 
         // 1st drain: only the spawn op
         const ops1 = c.drain();
@@ -57,10 +57,10 @@ describe("Commands", () => {
         ]);
     });
 
-    test("spawnMany() with no items still spawns and init enqueues nothing", () => {
+    test("spawnWith() with no items still spawns and init enqueues nothing", () => {
         const c = new Commands();
 
-        c.spawnMany();
+        c.spawnWith();
 
         const ops1 = c.drain();
         expect(ops1).toHaveLength(1);

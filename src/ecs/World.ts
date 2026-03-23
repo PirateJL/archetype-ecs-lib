@@ -368,7 +368,7 @@ export class World extends StatsOverlay implements WorldApi
         return entity;
     }
 
-    public spawnMany(...items: ComponentCtorBundleItem[]): Entity
+    public spawnWith(...items: ComponentCtorBundleItem[]): Entity
     {
         const e = this.spawn();
         for (const [ctor, value] of items) this.add(e, ctor as any, value as any);
