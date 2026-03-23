@@ -138,11 +138,13 @@ export class World extends StatsOverlay implements WorldApi
     /** Queue structural changes to apply safely after systems run. */
     public cmd(): Commands
     {
+        this._ensureNotDestroyed();
         return this.commands;
     }
 
     public addSystem(fn: SystemFn): this
     {
+        this._ensureNotDestroyed();
         this.systems.push(fn);
         return this;
     }
@@ -171,6 +173,7 @@ export class World extends StatsOverlay implements WorldApi
      */
     public update(dt: number): void
     {
+        this._ensureNotDestroyed();
         // Runtime conflict detection
         if (this._scheduleSystems.size > 0) {
             this._warnAboutLifecycleConflict("World.update");
@@ -212,6 +215,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public flush(): void
     {
+        this._ensureNotDestroyed();
         this._ensureNotIterating("flush");
         // Apply commands until the queue is empty. This allows spawn(init) to enqueue add/remove
         // operations that will be applied during the same flush.
@@ -239,33 +243,39 @@ export class World extends StatsOverlay implements WorldApi
     //#region ---------- Snapshot / Restore ----------
     public registerComponentSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this
     {
+        this._ensureNotDestroyed();
         this.snapshotStore.registerComponentSnapshot(this._snapshotRuntime(), key, codec);
         return this;
     }
 
     public unregisterComponentSnapshot<T>(key: ComponentCtor<T>): boolean
     {
+        this._ensureNotDestroyed();
         return this.snapshotStore.unregisterComponentSnapshot(key);
     }
 
     public registerResourceSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this
     {
+        this._ensureNotDestroyed();
         this.snapshotStore.registerResourceSnapshot(this._snapshotRuntime(), key, codec);
         return this;
     }
 
     public unregisterResourceSnapshot<T>(key: ComponentCtor<T>): boolean
     {
+        this._ensureNotDestroyed();
         return this.snapshotStore.unregisterResourceSnapshot(key);
     }
 
     public snapshot(): WorldSnapshot
     {
+        this._ensureNotDestroyed();
         return this.snapshotStore.snapshot(this._snapshotRuntime());
     }
 
     public restore(snapshot: WorldSnapshot): void
     {
+        this._ensureNotDestroyed();
         this.snapshotStore.restore(this._snapshotRuntime(), snapshot);
         this.updateOverlay(this.stats(), this.statsHistory());
     }
@@ -274,17 +284,20 @@ export class World extends StatsOverlay implements WorldApi
     //#region ---------- Resources (singletons) ----------
     public setResource<T>(key: ComponentCtor<T>, value: T): void
     {
+        this._ensureNotDestroyed();
         this.resources.set(key, value);
     }
 
     public getResource<T>(key: ComponentCtor<T>): T | undefined
     {
+        this._ensureNotDestroyed();
         if (!this.resources.has(key)) return undefined;
         return this.resources.get(key) as T;
     }
 
     public requireResource<T>(key: ComponentCtor<T>): T
     {
+        this._ensureNotDestroyed();
         if (!this.resources.has(key)) {
             const name = this._formatCtor(key);
             throw new Error(
@@ -297,16 +310,19 @@ export class World extends StatsOverlay implements WorldApi
 
     public hasResource<T>(key: ComponentCtor<T>): boolean
     {
+        this._ensureNotDestroyed();
         return this.resources.has(key);
     }
 
     public removeResource<T>(key: ComponentCtor<T>): boolean
     {
+        this._ensureNotDestroyed();
         return this.resources.delete(key);
     }
 
     public initResource<T>(key: ComponentCtor<T>, factory: () => T): T
     {
+        this._ensureNotDestroyed();
         if (this.resources.has(key)) return this.resources.get(key) as T;
         const value = factory();
         this.resources.set(key, value);
@@ -317,16 +333,19 @@ export class World extends StatsOverlay implements WorldApi
     //#region ---------- Events (phase-scoped) ----------
     public emit<T>(key: ComponentCtor<T>, ev: T): void
     {
+        this._ensureNotDestroyed();
         this._events(key).emit(ev);
     }
 
     public events<T>(key: ComponentCtor<T>): EventChannel<T>
     {
+        this._ensureNotDestroyed();
         return this._events(key);
     }
 
     public drainEvents<T>(key: ComponentCtor<T>, fn: (ev: T) => void): void
     {
+        this._ensureNotDestroyed();
         const ch = this.eventChannels.get(key) as EventChannel<T> | undefined;
         if (!ch) return;
         ch.drain(fn);
@@ -334,6 +353,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public clearEvents<T>(key?: ComponentCtor<T>): void
     {
+        this._ensureNotDestroyed();
         if (key) {
             const ch = this.eventChannels.get(key);
             if (!ch) return;
@@ -348,6 +368,7 @@ export class World extends StatsOverlay implements WorldApi
     /** @internal Called by Schedule at phase boundaries */
     public swapEvents(): void
     {
+        this._ensureNotDestroyed();
         for (const ch of this.eventChannels.values()) ch.swapBuffers();
     }
     //#endregion
@@ -356,7 +377,7 @@ export class World extends StatsOverlay implements WorldApi
     //#region ---------- Entity lifecycle ----------
     public spawn(): Entity
     {
-        if (this._destroyed) throw new Error("Cannot use a destroyed World.");
+        this._ensureNotDestroyed();
         this._ensureNotIterating("spawn");
         const entity = this.entities.create();
         // place in archetype 0
@@ -377,11 +398,13 @@ export class World extends StatsOverlay implements WorldApi
 
     public isAlive(e: Entity): boolean
     {
+        this._ensureNotDestroyed();
         return this.entities.isAlive(e);
     }
 
     public despawn(e: Entity): void
     {
+        this._ensureNotDestroyed();
         this._assertAlive(e, 'despawn');
         this._ensureNotIterating("despawn");
         this._removeFromArchetype(e);
@@ -397,6 +420,7 @@ export class World extends StatsOverlay implements WorldApi
     //#region ---------- Components ----------
     public has<T>(e: Entity, ctor: ComponentCtor<T>): boolean
     {
+        this._ensureNotDestroyed();
         const meta = this.entities.meta[e.id];
         if (!meta || !meta.alive || meta.gen !== e.gen) return false;
         const tid = typeId(ctor);
@@ -405,6 +429,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public get<T>(e: Entity, ctor: ComponentCtor<T>): T | undefined
     {
+        this._ensureNotDestroyed();
         const meta = this.entities.meta[e.id];
         if (!meta || !meta.alive || meta.gen !== e.gen) return undefined;
         const tid = typeId(ctor);
@@ -415,6 +440,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public set<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
+        this._ensureNotDestroyed();
         const op = `set(${this._formatCtor(ctor)})`;
         const meta = this._assertAlive(e, op);
 
@@ -427,6 +453,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
+        this._ensureNotDestroyed();
         const op = `add(${this._formatCtor(ctor)})`;
         this._assertAlive(e, op);
         this._ensureNotIterating(op);
@@ -457,6 +484,7 @@ export class World extends StatsOverlay implements WorldApi
     {
         if (items.length === 0) return;
 
+        this._ensureNotDestroyed();
         this._assertAlive(e, "addMany");
         this._ensureNotIterating("addMany");
 
@@ -500,6 +528,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public remove<T>(e: Entity, ctor: ComponentCtor<T>): void
     {
+        this._ensureNotDestroyed();
         const op = `remove(${this._formatCtor(ctor)})`;
         this._assertAlive(e, op);
         this._ensureNotIterating(op);
@@ -525,6 +554,7 @@ export class World extends StatsOverlay implements WorldApi
     {
         if (ctors.length === 0) return;
 
+        this._ensureNotDestroyed();
         this._assertAlive(e, "removeMany");
         this._ensureNotIterating("removeMany");
 
@@ -609,7 +639,12 @@ export class World extends StatsOverlay implements WorldApi
 
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
-        return { [Symbol.iterator]() { return gen(self, self._matchingArchetypes(needSorted)); } };
+        return {
+            [Symbol.iterator]() {
+                self._ensureNotDestroyed();
+                return gen(self, self._matchingArchetypes(needSorted));
+            }
+        };
     }
 
     /**
@@ -647,7 +682,12 @@ export class World extends StatsOverlay implements WorldApi
 
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
-        return { [Symbol.iterator]() { return gen(self, self._matchingArchetypes(needSorted)); } };
+        return {
+            [Symbol.iterator]() {
+                self._ensureNotDestroyed();
+                return gen(self, self._matchingArchetypes(needSorted));
+            }
+        };
     }
 
     /**
@@ -667,6 +707,7 @@ export class World extends StatsOverlay implements WorldApi
     public queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
     public queryEach(...args: any[]): void
     {
+        this._ensureNotDestroyed();
         const fn = args[args.length - 1] as (...params: unknown[]) => void;
         const rest = args.slice(0, args.length - 1);
         const filter = World._isQueryFilter(rest[rest.length - 1]) ? rest.pop() as QueryFilter : undefined;
@@ -788,6 +829,11 @@ export class World extends StatsOverlay implements WorldApi
         const withoutSorted: TypeId[] = (filter?.without?.map(c => typeId(c)) ?? []).sort((a, b) => a - b);
 
         return { requested, needSorted, withoutSorted };
+    }
+
+    private _ensureNotDestroyed(): void
+    {
+        if (this._destroyed) throw new Error("Cannot use a destroyed World.");
     }
 
     private _ensureNotIterating(op: string): void

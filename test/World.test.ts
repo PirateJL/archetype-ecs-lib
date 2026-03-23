@@ -277,10 +277,42 @@ describe("World", () => {
             expect(() => w.destroy()).toThrow("World.destroy() called on an already-destroyed world.");
         });
 
-        test("throws on spawn() after destroy()", () => {
+        test("throws on every public method after destroy()", () => {
             const w = new World();
+            const e = w.spawn();
             w.destroy();
-            expect(() => w.spawn()).toThrow("Cannot use a destroyed World.");
+
+            const err = "Cannot use a destroyed World.";
+            expect(() => w.spawn()).toThrow(err);
+            expect(() => w.spawnWith([Position, new Position(1, 2)])).toThrow(err);
+            expect(() => w.isAlive(e)).toThrow(err);
+            expect(() => w.despawn(e)).toThrow(err);
+            expect(() => w.has(e, Position)).toThrow(err);
+            expect(() => w.get(e, Position)).toThrow(err);
+            expect(() => w.set(e, Position, new Position(0, 0))).toThrow(err);
+            expect(() => w.add(e, Position, new Position(0, 0))).toThrow(err);
+            expect(() => w.addMany(e, [Position, new Position(0, 0)])).toThrow(err);
+            expect(() => w.remove(e, Position)).toThrow(err);
+            expect(() => w.removeMany(e, Position)).toThrow(err);
+            expect(() => [...w.query(Position)]).toThrow(err);
+            expect(() => [...w.queryTables(Position)]).toThrow(err);
+            expect(() => w.queryEach(Position, () => {})).toThrow(err);
+            expect(() => w.cmd()).toThrow(err);
+            expect(() => w.flush()).toThrow(err);
+            expect(() => w.update(0)).toThrow(err);
+            expect(() => w.addSystem(() => {})).toThrow(err);
+            expect(() => w.setResource(Position, new Position(0, 0))).toThrow(err);
+            expect(() => w.getResource(Position)).toThrow(err);
+            expect(() => w.requireResource(Position)).toThrow(err);
+            expect(() => w.hasResource(Position)).toThrow(err);
+            expect(() => w.removeResource(Position)).toThrow(err);
+            expect(() => w.initResource(Position, () => new Position(0, 0))).toThrow(err);
+            expect(() => w.emit(Position, new Position(0, 0))).toThrow(err);
+            expect(() => w.events(Position)).toThrow(err);
+            expect(() => w.drainEvents(Position, () => {})).toThrow(err);
+            expect(() => w.clearEvents()).toThrow(err);
+            expect(() => w.swapEvents()).toThrow(err);
+            expect(() => w.snapshot()).toThrow(err);
         });
     });
 
