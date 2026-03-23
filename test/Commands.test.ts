@@ -118,7 +118,7 @@ describe("Commands", () => {
         expect(ops).toEqual([{ k: "add", e, ctor: Position, value: p }]);
     });
 
-    test("addMany() enqueues multiple add commands (in order)", () => {
+    test("addMany() enqueues a single addMany command", () => {
         const c = new Commands();
         const e: Entity = { id: 1, gen: 0 };
         const p = new Position(1, 2);
@@ -129,9 +129,7 @@ describe("Commands", () => {
 
         const ops = c.drain();
         expect(ops).toEqual([
-            { k: "add", e, ctor: Position, value: p },
-            { k: "add", e, ctor: Velocity, value: v },
-            { k: "add", e, ctor: Frozen, value: f },
+            { k: "addMany", e, items: [[Position, p], [Velocity, v], [Frozen, f]] },
         ]);
     });
 
@@ -153,7 +151,7 @@ describe("Commands", () => {
         expect(ops).toEqual([{ k: "remove", e, ctor: Velocity }]);
     });
 
-    test("removeMany() enqueues multiple remove commands (in order)", () => {
+    test("removeMany() enqueues a single removeMany command", () => {
         const c = new Commands();
         const e: Entity = { id: 1, gen: 0 };
 
@@ -161,8 +159,7 @@ describe("Commands", () => {
 
         const ops = c.drain();
         expect(ops).toEqual([
-            { k: "remove", e, ctor: Velocity },
-            { k: "remove", e, ctor: Frozen },
+            { k: "removeMany", e, ctors: [Velocity, Frozen] },
         ]);
     });
 

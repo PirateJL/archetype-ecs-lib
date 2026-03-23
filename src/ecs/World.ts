@@ -858,8 +858,12 @@ export class World extends StatsOverlay implements WorldApi
                 return this.despawn(op.e);
             case "add":
                 return this.add(op.e, op.ctor, op.value);
+            case "addMany":
+                return this.addMany(op.e, ...op.items);
             case "remove":
                 return this.remove(op.e, op.ctor);
+            case "removeMany":
+                return this.removeMany(op.e, ...op.ctors);
         }
     }
 

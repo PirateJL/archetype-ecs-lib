@@ -81,11 +81,11 @@ Enqueues adding a component to an entity. This is a **structural** change (it ma
 
 ### `addMany(e: Entity, ...items: ComponentCtorBundleItem[])`
 
-Enqueues adding multiple components to an existing entity. All component adds are applied on flush.
+Enqueues adding multiple components to an existing entity as a **single batched command**. On flush, all components are applied in one archetype migration instead of one per component.
 
 * `e: Entity` is the target entity.
 * `...items: ComponentCtorBundleItem[]` is the list of components to add.
-* Internally, it loops through the items and calls `add(e, ctor, value)` for each component.
+* No-op if `items` is empty.
 
 ---
 
@@ -97,11 +97,11 @@ Enqueues removing a component from an entity. This is also a **structural** chan
 
 ### `removeMany(e: Entity, ...ctors: ComponentCtor<any>[])`
 
-Enqueues removal of multiple component types from an entity. The removals are applied on flush.
+Enqueues removal of multiple component types from an entity as a **single batched command**. On flush, all components are removed in one archetype migration instead of one per component.
 
 * `e: Entity` is the target entity.
 * `...ctors: ComponentCtor<any>[]` is the list of component constructors (types) to remove.
-* Internally, it loops through the ctors and calls `remove(e, ctor)` for each one.
+* No-op if `ctors` is empty.
 
 ---
 

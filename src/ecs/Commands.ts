@@ -4,7 +4,9 @@ export type Command =
     | { k: "spawn"; init?: (e: Entity) => void }
     | { k: "despawn"; e: Entity }
     | { k: "add"; e: Entity; ctor: ComponentCtor<any>; value: any }
-    | { k: "remove"; e: Entity; ctor: ComponentCtor<any> };
+    | { k: "addMany"; e: Entity; items: ComponentCtorBundleItem[] }
+    | { k: "remove"; e: Entity; ctor: ComponentCtor<any> }
+    | { k: "removeMany"; e: Entity; ctors: ComponentCtor<any>[] };
 
 export class Commands implements CommandsApi
 {
@@ -40,7 +42,8 @@ export class Commands implements CommandsApi
 
     public addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void
     {
-        for (const [ctor, value] of items) this.add(e, ctor as any, value as any);
+        if (items.length === 0) return;
+        this.q.push({ k: "addMany", e, items });
     }
 
     public remove<T>(e: Entity, ctor: ComponentCtor<T>): void
@@ -50,7 +53,8 @@ export class Commands implements CommandsApi
 
     public removeMany(e: Entity, ...ctors: ComponentCtor<any>[]): void
     {
-        for (const ctor of ctors) this.remove(e, ctor);
+        if (ctors.length === 0) return;
+        this.q.push({ k: "removeMany", e, ctors });
     }
 
     public hasPending(): boolean
