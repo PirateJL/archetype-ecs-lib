@@ -2,27 +2,27 @@
 
     World — Central owner of all ECS state
     │
-    ├── EntityManager        ID + generation counter; free-list allocator
+    ├── EntityManager        ID + generation counter, free-list allocator
     │
-    ├── Archetypes           One table per unique component set; SoA columns; add/remove edge cache
-    │   └── Query Cache      Incremental archetype matching; invalidated on new archetype
+    ├── Archetypes           One table per unique component set, SoA columns, add/remove edge cache
+    │   └── Query Cache      Incremental archetype matching, invalidated on new archetype
     │
-    ├── TypeRegistry         Maps component constructor → TypeId; used to build signatures
+    ├── TypeRegistry         Maps component constructor → TypeId, used to build signatures
     │
-    ├── Resources            Global singletons; keyed by constructor
+    ├── Resources            Global singletons, keyed by constructor
     │
-    ├── Event Channels       Double-buffered per type; write this phase → read next phase
+    ├── Event Channels       Double-buffered per type, write this phase → read next phase
     │
-    ├── Commands             Deferred queue (spawn · despawn · add · remove); flushed after each phase
+    ├── Commands             Deferred queue (spawn · despawn · add · remove), flushed after each phase
     │
-    ├── Snapshot Store       Opt-in serialize / restore; codec registered per type
+    ├── Snapshot Store       Opt-in serialize / restore, codec registered per type
     │
-    ├── StatsOverlay         Per-frame profiling; optional DOM HUD
+    ├── StatsOverlay         Per-frame profiling, optional DOM HUD
     │
-    ├── world.update(dt)     Single-phase loop; auto flush + swap events
+    ├── world.update(dt)     Single-phase loop, auto flush + swap events
     │   └── SystemFn[]
     │
-    └── Schedule             Multi-phase; topological ordering; .after() / .before() constraints;
+    └── Schedule             Multi-phase, topological ordering, .after() / .before() constraints,
         │                    phase boundaries auto-flush
         └── Phase → SystemFn[]
 
