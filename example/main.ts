@@ -68,12 +68,13 @@ const SpawnConfigToken = (() => ({
 })) as ComponentCtor<SpawnConfig>;
 
 const MILESTONES = [
-    { score: 50,  multiplier: 1.5, intervalMin: 0.25, intervalMax: 0.60 },
-    { score: 150, multiplier: 2.0, intervalMin: 0.20, intervalMax: 0.50 },
-    { score: 300, multiplier: 2.5, intervalMin: 0.16, intervalMax: 0.40 },
-    { score: 500, multiplier: 3.0, intervalMin: 0.13, intervalMax: 0.32 },
-    { score: 650, multiplier: 4.0, intervalMin: 0.10, intervalMax: 0.24 },
-    { score: 750, multiplier: 5.0, intervalMin: 0.08, intervalMax: 0.18 },
+    { score: 100,  multiplier: 1.4, intervalMin: 0.22, intervalMax: 0.55, spawnCount: 2 },
+    { score: 200,  multiplier: 1.9, intervalMin: 0.17, intervalMax: 0.44, spawnCount: 3 },
+    { score: 300, multiplier: 2.6, intervalMin: 0.13, intervalMax: 0.34, spawnCount: 3 },
+    { score: 400, multiplier: 3.4, intervalMin: 0.10, intervalMax: 0.26, spawnCount: 4 },
+    { score: 500, multiplier: 4.0, intervalMin: 0.07, intervalMax: 0.18, spawnCount: 4 },
+    { score: 600, multiplier: 4.5, intervalMin: 0.05, intervalMax: 0.12, spawnCount: 5 },
+    { score: 1000, multiplier: 6.0, intervalMin: 0.05, intervalMax: 0.12, spawnCount: 5 },
 ];
 
 // ------------------------------
@@ -303,11 +304,14 @@ function createSimulateSystem(viewport: Viewport) {
             const cfg = world.requireResource(SpawnConfigToken);
             game.spawnTimer -= dt;
 
+            const spawnCount = game.milestone > 0 ? MILESTONES[game.milestone - 1].spawnCount : 1;
             while (game.spawnTimer <= 0) {
                 game.spawnTimer += randomBetween(cfg.intervalMin, cfg.intervalMax);
-                const kind: ItemKind = Math.random() < cfg.starChance ? "star" : "bomb";
-                const x = randomBetween(24, Math.max(24, viewport.width - 24));
-                world.emit(SpawnItemEvent, new SpawnItemEvent(kind, x));
+                for (let i = 0; i < spawnCount; i++) {
+                    const kind: ItemKind = Math.random() < cfg.starChance ? "star" : "bomb";
+                    const x = randomBetween(24, Math.max(24, viewport.width - 24));
+                    world.emit(SpawnItemEvent, new SpawnItemEvent(kind, x));
+                }
             }
         }
 
@@ -621,8 +625,8 @@ function main(): void {
     schedule.add(world, "render", renderSystem).after("sound");
 
     const resize = () => {
-        const maxW = Math.min(window.innerWidth - 24, 960);
-        const maxH = Math.min(window.innerHeight - 24, 540);
+        const maxW = Math.min(window.innerWidth * 0.95, 1560);
+        const maxH = Math.min(window.innerHeight * 0.95, 940);
 
         viewport.width = Math.max(480, Math.floor(maxW));
         viewport.height = Math.max(300, Math.floor(maxH));
