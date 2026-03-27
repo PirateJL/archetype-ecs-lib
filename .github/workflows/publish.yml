@@ -3,7 +3,8 @@ name: Publish library package
 on:
   push:
     tags:
-      - "v*.*.*" # publish only on version tags like v1.2.3
+      - "v*.*.*"      # publish only on version tags like v1.2.3
+      - "!v*.*.*-*"   # exclude anything with a pre-release suffix
 
 jobs:
   test:
