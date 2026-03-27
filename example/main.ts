@@ -29,6 +29,7 @@ class PlayerTag { }
 // Marker added to falling items when the game ends — demonstrates QueryFilter `with`/`without`
 class FrozenTag { }
 
+type ItemSound = "star" | "bomb" | "wall" | "gameOver";
 type ItemKind = "star" | "bomb";
 type FallingKind = { kind: ItemKind };
 const FallingKindToken = (() => ({ kind: "star" as ItemKind })) as ComponentCtor<FallingKind>;
@@ -41,7 +42,8 @@ class GameState {
         public score = 0,
         public lives = 3,
         public spawnTimer = 0.5,
-        public running = true
+        public running = true,
+        public milestone = 0
     ) { }
 }
 
@@ -51,6 +53,8 @@ type SpawnConfig = {
     starChance: number;
     starSpeed: number;
     bombSpeed: number;
+    speedMultiplier: number;
+    playerSpeedMultiplier: number;
 };
 
 const SpawnConfigToken = (() => ({
@@ -58,8 +62,19 @@ const SpawnConfigToken = (() => ({
     intervalMax: 0.72,
     starChance: 0.72,
     starSpeed: 150,
-    bombSpeed: 220
+    bombSpeed: 220,
+    speedMultiplier: 1.0,
+    playerSpeedMultiplier: 1.0
 })) as ComponentCtor<SpawnConfig>;
+
+const MILESTONES = [
+    { score: 50,  multiplier: 1.5, intervalMin: 0.25, intervalMax: 0.60 },
+    { score: 150, multiplier: 2.0, intervalMin: 0.20, intervalMax: 0.50 },
+    { score: 300, multiplier: 2.5, intervalMin: 0.16, intervalMax: 0.40 },
+    { score: 500, multiplier: 3.0, intervalMin: 0.13, intervalMax: 0.32 },
+    { score: 650, multiplier: 4.0, intervalMin: 0.10, intervalMax: 0.24 },
+    { score: 750, multiplier: 5.0, intervalMin: 0.08, intervalMax: 0.18 },
+];
 
 // ------------------------------
 // Events
@@ -71,6 +86,12 @@ class SpawnItemEvent {
 class ItemCollectedEvent {
     constructor(public kind: ItemKind) { }
 }
+
+class SoundEvent {
+    constructor(public tag: ItemSound) { }
+}
+
+class WallHitEvent { }
 
 // ------------------------------
 // Runtime-only state
@@ -158,7 +179,9 @@ function bootstrapWorld(world: World, viewport: Viewport): void {
         intervalMax: 0.72,
         starChance: 0.72,
         starSpeed: 150,
-        bombSpeed: 220
+        bombSpeed: 220,
+        speedMultiplier: 1.0,
+        playerSpeedMultiplier: 1.0
     });
 
     const player = world.spawn();
@@ -207,15 +230,17 @@ function registerSnapshotCodecs(world: World): void {
         lives: number;
         spawnTimer: number;
         running: boolean;
+        milestone: number;
     }> = {
         key: "res.game-state",
         serialize: (v) => ({
             score: v.score,
             lives: v.lives,
             spawnTimer: v.spawnTimer,
-            running: v.running
+            running: v.running,
+            milestone: v.milestone
         }),
-        deserialize: (data) => new GameState(data.score, data.lives, data.spawnTimer, data.running)
+        deserialize: (data) => new GameState(data.score, data.lives, data.spawnTimer, data.running, data.milestone)
     };
 
     const spawnConfigCodec: SnapshotCodec<SpawnConfig, SpawnConfig> = {
@@ -254,12 +279,13 @@ function createBeginFrameSystem(toast: ToastState) {
 function createInputSystem(input: InputState, actionQueue: ControlAction[]) {
     return (world: WorldApi, _dt: number): void => {
         const game = world.requireResource(GameState);
+        const cfg = world.requireResource(SpawnConfigToken);
         const horizontal = (input.leftHeld ? -1 : 0) + (input.rightHeld ? 1 : 0);
 
         // `with: [PlayerTag]` filters to the player without returning the tag value
         const playerFilter: QueryFilter = { with: [PlayerTag] };
         world.queryEach(Velocity, playerFilter, (_entity: Entity, velocity: Velocity) => {
-            velocity.x = game.running ? horizontal * PLAYER_SPEED : 0;
+            velocity.x = game.running ? horizontal * PLAYER_SPEED * cfg.playerSpeedMultiplier : 0;
             velocity.y = 0;
         });
 
@@ -285,19 +311,35 @@ function createSimulateSystem(viewport: Viewport) {
             }
         }
 
-        // `without: [FrozenTag]` skips items frozen on game-over
-        world.queryEach(Position, Velocity, { without: [FrozenTag] }, (_entity: Entity, position: Position, velocity: Velocity) => {
+        // `without: [FrozenTag]` skips items frozen on game-over and the player
+        world.queryEach(Position, Velocity, { without: [FrozenTag, PlayerTag] }, (_entity: Entity, position: Position, velocity: Velocity) => {
             position.x += velocity.x * dt;
             position.y += velocity.y * dt;
         });
 
         // `with: [PlayerTag]` filters to the player without returning the tag value
-        world.queryEach(Position, Circle, { with: [PlayerTag] }, (_entity: Entity, position: Position, circle: Circle) => {
+        world.queryEach(Position, Circle, Velocity, { with: [PlayerTag] }, (_entity: Entity, position: Position, circle: Circle, velocity: Velocity) => {
             const minX = circle.radius;
             const maxX = Math.max(minX, viewport.width - circle.radius);
+            const prevX = position.x;
 
-            if (position.x < minX) position.x = minX;
-            if (position.x > maxX) position.x = maxX;
+            position.x += velocity.x * dt;
+            position.y += velocity.y * dt;
+
+            if (position.x < minX) {
+                position.x = minX;
+
+                if (prevX > minX) {
+                    world.emit(WallHitEvent, new WallHitEvent());
+                }
+            }
+            if (position.x > maxX) {
+                position.x = maxX;
+
+                if (prevX < maxX) {
+                    world.emit(WallHitEvent, new WallHitEvent());
+                }
+            }
 
             position.y = viewport.height - PLAYER_Y_OFFSET;
         });
@@ -314,12 +356,16 @@ function applySpawnsSystem(world: WorldApi, _dt: number): void {
     const cfg = world.requireResource(SpawnConfigToken);
 
     world.drainEvents(SpawnItemEvent, (ev) => {
-        const speed = ev.kind === "star" ? cfg.starSpeed : cfg.bombSpeed;
+        const speed = (ev.kind === "star" ? cfg.starSpeed : cfg.bombSpeed) * cfg.speedMultiplier;
         queueSpawnItem(world, ev.kind, ev.x, speed);
+    });
+
+    world.drainEvents(WallHitEvent, (ev) => {
+        world.emit(WallHitEvent, ev);
     });
 }
 
-function collideSystem(world: WorldApi, _dt: number): void {
+function collideSystem(world: WorldApi, dt: number): void {
     let hasPlayer = false;
     let playerX = 0;
     let playerY = 0;
@@ -349,25 +395,79 @@ function collideSystem(world: WorldApi, _dt: number): void {
         world.cmd().despawn(e);
         world.emit(ItemCollectedEvent, new ItemCollectedEvent(falling.kind));
     }
+
+    world.drainEvents(WallHitEvent, (ev) => {
+        world.emit(WallHitEvent, ev);
+    });
 }
 
-function resolveSystem(world: WorldApi, _dt: number): void {
+function createResolveSystem(toast: ToastState) {
+    return (world: WorldApi, _dt: number): void => {
     const game = world.requireResource(GameState);
 
+    world.drainEvents(WallHitEvent, () => {
+        world.emit(SoundEvent, new SoundEvent('wall'));
+    });
+
+    world.drainEvents(SoundEvent, (ev) => {
+        world.emit(SoundEvent, ev);
+    });
+
     world.drainEvents(ItemCollectedEvent, (ev) => {
+        world.emit(SoundEvent, new SoundEvent(ev.kind));
+
         if (ev.kind === "star") {
             game.score += 10;
+
+            const cfg = world.requireResource(SpawnConfigToken);
+            while (game.milestone < MILESTONES.length && game.score >= MILESTONES[game.milestone].score) {
+                const m = MILESTONES[game.milestone];
+                cfg.speedMultiplier = m.multiplier;
+                cfg.intervalMin = m.intervalMin;
+                cfg.intervalMax = m.intervalMax;
+                if (game.milestone % 2 === 0) cfg.playerSpeedMultiplier = m.multiplier;
+                toast.message = `Milestone ${game.milestone + 1} — speed x${m.multiplier}!`;
+                toast.ttl = 2.2;
+                game.milestone++;
+            }
             return;
         }
 
         game.lives = Math.max(0, game.lives - 1);
         if (game.lives === 0) {
             game.running = false;
+            world.emit(SoundEvent, new SoundEvent('gameOver'));
+
             // Freeze all active falling items — `without: [FrozenTag]` avoids double-adding
             for (const { e } of world.query(FallingKindToken, { without: [FrozenTag] })) {
                 world.cmd().add(e, FrozenTag, new FrozenTag());
             }
         }
+    });
+    };
+}
+
+function soundSystem(world: WorldApi, _dt: number) {
+    world.drainEvents(SoundEvent, (ev) => {
+        const audio = new Audio();
+
+        switch (ev.tag) {
+            case "star":
+                audio.src = "./assets/game-retro-click.wav";
+                break;
+            case "bomb":
+                audio.src = "./assets/arcade-mechanical-bling.wav";
+                break;
+            case "wall":
+                audio.src = "./assets/synthetic-sci-fi-wobble.wav";
+                break;
+            case "gameOver":
+                audio.src = "./assets/arcade-retro-game-over.wav";
+                break;
+        }
+
+        audio.load();
+        audio.play();
     });
 }
 
@@ -509,6 +609,7 @@ function main(): void {
     const inputSystem = createInputSystem(input, actionQueue);
     const simulateSystem = createSimulateSystem(viewport);
     const renderSystem = createRenderSystem(ctx, viewport, toast);
+    const resolveSystem = createResolveSystem(toast);
 
     schedule.add(world, "begin", beginFrameSystem);
     schedule.add(world, "input", inputSystem).after("begin");
@@ -516,7 +617,8 @@ function main(): void {
     schedule.add(world, "spawn", applySpawnsSystem).after("simulate");
     schedule.add(world, "collide", collideSystem).after("spawn");
     schedule.add(world, "resolve", resolveSystem).after("collide");
-    schedule.add(world, "render", renderSystem).after("resolve");
+    schedule.add(world, "sound", soundSystem).after("resolve");
+    schedule.add(world, "render", renderSystem).after("sound");
 
     const resize = () => {
         const maxW = Math.min(window.innerWidth - 24, 960);
