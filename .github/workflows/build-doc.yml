@@ -4,9 +4,6 @@ on:
   workflow_run:
     workflows: ["Test"]
     types: [completed]
-  push:
-    tags:
-      - 'v*.*.*'
 
 permissions:
   contents: write
@@ -103,41 +100,3 @@ jobs:
           export ENABLE_PDF_EXPORT=1
           mike deploy --push preview
 
-  deploy-release:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout tag
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      - name: Install mkdocs + plugins
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-docs.txt
-
-      - name: Configure git for mike
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Deploy versioned docs
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          export PDF_LINK="/archetype-ecs-lib/${VERSION}/assets/document.pdf"
-          export EDIT_URI="blob/v${VERSION}/"
-          export ENABLE_PDF_EXPORT=1
-          mike deploy --push --update-aliases "${VERSION}" latest
-          mike set-default --push latest
