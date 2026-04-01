@@ -99,4 +99,7 @@ jobs:
           export EDIT_URI="blob/master/"
           export ENABLE_PDF_EXPORT=1
           mike deploy --push preview
-
+          if ! mike list 2>/dev/null | grep -q '\blatest\b'; then
+            echo "No 'latest' release found; setting 'preview' as default."
+            mike set-default --push preview
+          fi
