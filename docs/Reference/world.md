@@ -46,7 +46,7 @@ const e = world.spawn();
 
 ---
 
-### `spawnMany(...items: ComponentCtorBundleItem[]): Entity`
+### `spawnWith(...items: ComponentCtorBundleItem[]): Entity`
 
 Creates a new entity along with its initial components immediately.
 
@@ -88,6 +88,18 @@ if (world.isAlive(e)) { ... }
 
 ---
 
+### `destroy(): void`
+
+Releases all world state: archetypes, entities, resources, event channels, and systems. Any further structural use of the world after this call will throw.
+
+```ts
+world.destroy();
+```
+
+Intended for multi-world setups and hot-reload scenarios where you need to fully tear down a world instance.
+
+---
+
 ## Component API
 
 All component types are identified by **constructor identity**.
@@ -124,11 +136,12 @@ Throws if:
 
 ### `addMany(e: Entity, ...items: ComponentCtorBundleItem[]): void`
 
-Adding multiple components to an existing entity.
+Adds multiple components to an existing entity in a **single archetype migration**.
 
 * `e: Entity` is the target entity.
 * `...items: ComponentCtorBundleItem[]` is the list of components to add.
-* Internally, it loops through the items and calls `add` for each component.
+* No-op if `items` is empty.
+* Prefer over multiple `add()` calls when adding several components at once.
 
 ---
 
@@ -149,11 +162,12 @@ Throws if:
 
 ### `removeMany(e: Entity, ...ctors: ComponentCtor<any>[]): void`
 
-Removes multiple component types from an entity.
+Removes multiple component types from an entity in a **single archetype migration**.
 
 * `e: Entity` is the target entity.
 * `...ctors: ComponentCtor<any>[]` is the list of component constructors (types) to remove.
-* Internally, it loops through the ctors and calls `remove` for each one.
+* No-op if `ctors` is empty.
+* Prefer over multiple `remove()` calls when removing several components at once.
 
 ---
 

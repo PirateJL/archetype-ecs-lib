@@ -9,12 +9,11 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@types/three": "^0.182.0",
+    "@types/three": "0.182.0",
     "typescript": "~5.9.3",
-    "vite": "^7.2.4"
+    "vite": "7.2.4"
   },
   "dependencies": {
-    "archetype-ecs-lib": "^0.4.1",
-    "three": "^0.182.0"
+    "three": "0.182.0"
   }
 }

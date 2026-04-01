@@ -60,7 +60,7 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
-site_dir: "public"
+site_dir: "public-docs"
 
 repo_name: Github
 repo_url: https://github.com/PirateJL/archetype-ecs-lib
@@ -85,7 +85,7 @@ plugins:
   with-pdf:
       enabled_if_env: ENABLE_PDF_EXPORT
       output_path: assets/document.pdf
-      cover_subtitle: "La gestion de contenu intégrée"
+      cover_subtitle: "Integrated content management"
       cover_logo: assets/logo_couleur.png
       exclude_pages:
         - Demo/

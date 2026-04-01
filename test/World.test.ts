@@ -1,4 +1,4 @@
-import { World, WorldApi } from "../src";
+import { World, WorldApi, bundle } from "../src";
 
 class Position { constructor(public x = 0, public y = 0) {} }
 class Velocity { constructor(public dx = 0, public dy = 0) {} }
@@ -26,7 +26,7 @@ describe("World", () => {
 
     it("spawn an entity alive with many components", () => {
         const w = new World();
-        const e = w.spawnMany(
+        const e = w.spawnWith(
             [Position, new Position()],
             [Velocity, new Velocity()]
         );
@@ -64,6 +64,33 @@ describe("World", () => {
         expect(w.has(e, Health)).toBe(false);
         expect(w.get(e, Velocity)).toBeUndefined();
         expect(w.get(e, Health)).toBeUndefined();
+    });
+
+    it("addMany updates in-place when a component already exists and adds new ones atomically", () => {
+        const w = new World();
+        const e = w.spawnWith([Position, new Position(1, 2)], [Velocity, new Velocity(3, 4)]);
+
+        // Position already exists (in-place update), Health is new
+        w.addMany(e, [Position, new Position(9, 9)], [Health, new Health(50)]);
+
+        expect(w.get(e, Position)).toEqual({ x: 9, y: 9 });
+        expect(w.get(e, Velocity)).toEqual({ dx: 3, dy: 4 }); // unchanged
+        expect(w.get(e, Health)!.hp).toBe(50);
+    });
+
+    it("removeMany keeps remaining components intact", () => {
+        const w = new World();
+        const e = w.spawnWith(
+            [Position, new Position(1, 2)],
+            [Velocity, new Velocity(3, 4)],
+            [Health, new Health(100)],
+        );
+
+        w.removeMany(e, Velocity); // remove only Velocity, keep Position + Health
+
+        expect(w.has(e, Velocity)).toBe(false);
+        expect(w.get(e, Position)).toEqual({ x: 1, y: 2 }); // still there, copied via pick
+        expect(w.get(e, Health)!.hp).toBe(100);              // still there, copied via pick
     });
 
     it("add overwrites in-place if component already exists", () => {
@@ -153,14 +180,14 @@ describe("World", () => {
         }).toThrow(/Cannot do structural change \(spawn\)/i);
     });
 
-    test("spawnMany is forbidden during query iteration", () => {
+    test("spawnWith is forbidden during query iteration", () => {
         const w = new World();
         const e = w.spawn();
         w.add(e, Position, new Position(1, 2));
 
         expect(() => {
             w.queryEach(Position, () => {
-                w.spawnMany([Velocity, new Velocity()]);
+                w.spawnWith([Velocity, new Velocity()]);
             });
         }).toThrow(/Cannot do structural change \(spawn\)/i);
     });
@@ -183,7 +210,7 @@ describe("World", () => {
 
     test("update() flushes queued commands successfully", () => {
         const w = new World();
-        const e = w.spawnMany([Position, new Position(1, 1)], [Velocity, new Velocity(1, 1)])
+        const e = w.spawnWith([Position, new Position(1, 1)], [Velocity, new Velocity(1, 1)])
 
         w.addSystem((world: WorldApi) => {
             world.cmd().remove(e, Velocity);
@@ -228,5 +255,93 @@ describe("World", () => {
         });
 
         expect(() => w.update(0)).toThrow("system error");
+    });
+
+    describe("world.destroy()", () => {
+        test("clears all entities, archetypes, and resources", () => {
+            const w = new World();
+            class Tag {}
+            w.spawnWith([Position, new Position(1, 2)]);
+            w.setResource(Tag, new Tag());
+
+            w.destroy();
+
+            expect(w.stats().aliveEntities).toBe(0);
+            expect(w.stats().archetypes).toBe(0);
+            expect(w.stats().resources).toBe(0);
+        });
+
+        test("throws when destroy() is called twice", () => {
+            const w = new World();
+            w.destroy();
+            expect(() => w.destroy()).toThrow("World.destroy() called on an already-destroyed world.");
+        });
+
+        test("throws on every public method after destroy()", () => {
+            const w = new World();
+            const e = w.spawn();
+            w.destroy();
+
+            const err = "Cannot use a destroyed World.";
+            expect(() => w.spawn()).toThrow(err);
+            expect(() => w.spawnWith([Position, new Position(1, 2)])).toThrow(err);
+            expect(() => w.isAlive(e)).toThrow(err);
+            expect(() => w.despawn(e)).toThrow(err);
+            expect(() => w.has(e, Position)).toThrow(err);
+            expect(() => w.get(e, Position)).toThrow(err);
+            expect(() => w.set(e, Position, new Position(0, 0))).toThrow(err);
+            expect(() => w.add(e, Position, new Position(0, 0))).toThrow(err);
+            expect(() => w.addMany(e, [Position, new Position(0, 0)])).toThrow(err);
+            expect(() => w.remove(e, Position)).toThrow(err);
+            expect(() => w.removeMany(e, Position)).toThrow(err);
+            expect(() => [...w.query(Position)]).toThrow(err);
+            expect(() => [...w.queryTables(Position)]).toThrow(err);
+            expect(() => w.queryEach(Position, () => {})).toThrow(err);
+            expect(() => w.cmd()).toThrow(err);
+            expect(() => w.flush()).toThrow(err);
+            expect(() => w.update(0)).toThrow(err);
+            expect(() => w.addSystem(() => {})).toThrow(err);
+            expect(() => w.setResource(Position, new Position(0, 0))).toThrow(err);
+            expect(() => w.getResource(Position)).toThrow(err);
+            expect(() => w.requireResource(Position)).toThrow(err);
+            expect(() => w.hasResource(Position)).toThrow(err);
+            expect(() => w.removeResource(Position)).toThrow(err);
+            expect(() => w.initResource(Position, () => new Position(0, 0))).toThrow(err);
+            expect(() => w.emit(Position, new Position(0, 0))).toThrow(err);
+            expect(() => w.events(Position)).toThrow(err);
+            expect(() => w.drainEvents(Position, () => {})).toThrow(err);
+            expect(() => w.clearEvents()).toThrow(err);
+            expect(() => w.swapEvents()).toThrow(err);
+            expect(() => w.snapshot()).toThrow(err);
+        });
+    });
+
+    describe("bundle()", () => {
+        test("creates a readonly array of component/value pairs", () => {
+            const pos = new Position(1, 2);
+            const vel = new Velocity(3, 4);
+            const b = bundle([Position, pos], [Velocity, vel]);
+            expect(b).toEqual([[Position, pos], [Velocity, vel]]);
+        });
+
+        test("can be spread into spawnWith", () => {
+            const w = new World();
+            const b = bundle([Position, new Position(5, 6)], [Velocity, new Velocity(1, 0)]);
+            const e = w.spawnWith(...b);
+            expect(w.get(e, Position)?.x).toBe(5);
+            expect(w.get(e, Velocity)?.dx).toBe(1);
+        });
+
+        test("can be spread into cmd().spawnWith", () => {
+            const w = new World();
+            const b = bundle([Position, new Position(7, 8)]);
+            w.cmd().spawnWith(...b);
+            w.flush();
+            let found = false;
+            for (const { c1 } of w.query(Position)) {
+                if (c1.x === 7) found = true;
+            }
+            expect(found).toBe(true);
+        });
     });
 });

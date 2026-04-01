@@ -14,20 +14,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  deploy-preview:
     if: >
+      github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'master' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout default branch
+      - name: Checkout master
         uses: actions/checkout@v4
         with:
           ref: master
           fetch-depth: 0
-      
+
       - name: Download docs-changed flag
         uses: actions/download-artifact@v4
         with:
@@ -36,7 +37,7 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Read docs-changed flag
         id: docsflag
         run: |
@@ -47,7 +48,22 @@ jobs:
       - name: Skip (no docs changes)
         if: env.DOCS_CHANGED != 'true'
         run: echo "No docs changes detected; skipping docs build & deploy."
-      
+
+      - name: Check docs vs latest tag
+        if: env.DOCS_CHANGED == 'true'
+        run: |
+          LATEST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo '')"
+          if [[ -z "$LATEST_TAG" ]]; then
+            echo "No tags found; preview will be built."
+            exit 0
+          fi
+          if git diff --quiet "${LATEST_TAG}" HEAD -- docs/ mkdocs.yml; then
+            echo "Docs are identical to ${LATEST_TAG}; skipping preview build."
+            echo "DOCS_CHANGED=false" >> "$GITHUB_ENV"
+          else
+            echo "Docs differ from ${LATEST_TAG}; preview will be built."
+          fi
+
       - name: Download coverage badge from triggering run
         if: env.DOCS_CHANGED == 'true'
         uses: actions/download-artifact@v4
@@ -70,21 +86,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-docs.txt
 
-      - name: Build docs
+      - name: Configure git for mike
         if: env.DOCS_CHANGED == 'true'
-        env:
-          BRANCH: master
         run: |
-          export PDF_LINK="/archetype-ecs-lib/assets/document.pdf"
-          export EDIT_URI="blob/${BRANCH}/"
-          export DOC_BRANCH=${BRANCH}
-          export ENABLE_PDF_EXPORT=1
-          mkdocs build --clean --strict --config-file "mkdocs.yml"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Deploy to gh-pages
+      - name: Deploy preview docs
         if: env.DOCS_CHANGED == 'true'
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: public
+        run: |
+          export PDF_LINK="/archetype-ecs-lib/preview/assets/document.pdf"
+          export EDIT_URI="blob/master/"
+          export ENABLE_PDF_EXPORT=1
+          mike deploy --push preview
+

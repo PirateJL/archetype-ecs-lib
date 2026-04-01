@@ -39,9 +39,9 @@ class Velocity { constructor(public x = 0, public y = 0) {} }
 const world = new World();
 
 // 3) Spawn an entity and add components
-const e = world.spawnMany(
-  new Position(0, 0, 0),
-  new Velocity(2, 0)// 2 units/sec along x
+const e = world.spawnWith(
+  [Position, new Position(0, 0)],
+  [Velocity, new Velocity(2, 0)], // 2 units/sec along x
 )
 
 // 4) Add a system (runs each update)

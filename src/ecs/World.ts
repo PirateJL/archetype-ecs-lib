@@ -2,7 +2,7 @@ import {Archetype} from "./Archetype";
 import {type Command, Commands} from "./Commands";
 import {EntityManager} from "./EntityManager";
 import {EventChannel} from "./Events";
-import {mergeSignature, signatureHasAll, signatureKey, subtractSignature} from "./Signature";
+import {mergeSignature, signatureHasAll, signatureHasAny, signatureKey, subtractSignature} from "./Signature";
 import {typeId} from "./TypeRegistry";
 import {WorldSnapshotStore} from "./WorldSnapshotStore";
 import type {
@@ -10,6 +10,7 @@ import type {
     ComponentCtorBundleItem,
     Entity,
     EntityMeta,
+    QueryFilter,
     QueryRow1,
     QueryRow2,
     QueryRow3,
@@ -49,8 +50,17 @@ export class World extends StatsOverlay implements WorldApi
     private readonly eventChannels = new Map<ComponentCtor<any>, EventChannel<any>>();
     private readonly snapshotStore = new WorldSnapshotStore();
 
+    /**
+     * Query result cache: maps a sorted query signature key → matching archetypes.
+     * `checked` tracks how many archetypes were scanned when the entry was last updated.
+     * Because archetypes are append-only, new ones are scanned incrementally on next use.
+     */
+    private readonly _queryCache = new Map<string, { archs: Archetype[]; checked: number }>();
+
     /** @internal Phase -> systems mapping for Schedule */
     public readonly _scheduleSystems = new Map<string, SystemFn[]>();
+
+    private _destroyed = false;
 
     constructor(options?: {statsOverlayOptions: StatsOverlayOptions})
     {
@@ -128,11 +138,13 @@ export class World extends StatsOverlay implements WorldApi
     /** Queue structural changes to apply safely after systems run. */
     public cmd(): Commands
     {
+        this._ensureNotDestroyed();
         return this.commands;
     }
 
     public addSystem(fn: SystemFn): this
     {
+        this._ensureNotDestroyed();
         this.systems.push(fn);
         return this;
     }
@@ -161,6 +173,7 @@ export class World extends StatsOverlay implements WorldApi
      */
     public update(dt: number): void
     {
+        this._ensureNotDestroyed();
         // Runtime conflict detection
         if (this._scheduleSystems.size > 0) {
             this._warnAboutLifecycleConflict("World.update");
@@ -202,6 +215,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public flush(): void
     {
+        this._ensureNotDestroyed();
         this._ensureNotIterating("flush");
         // Apply commands until the queue is empty. This allows spawn(init) to enqueue add/remove
         // operations that will be applied during the same flush.
@@ -212,36 +226,56 @@ export class World extends StatsOverlay implements WorldApi
         }
     }
 
+    public destroy(): void
+    {
+        if (this._destroyed) throw new Error("World.destroy() called on an already-destroyed world.");
+        this._destroyed = true;
+        this.archetypes.length = 0;
+        this.archByKey.clear();
+        this._queryCache.clear();
+        this.systems.length = 0;
+        this._scheduleSystems.clear();
+        this.resources.clear();
+        this.eventChannels.clear();
+        this.entities.meta.length = 0;
+    }
+
     //#region ---------- Snapshot / Restore ----------
     public registerComponentSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this
     {
+        this._ensureNotDestroyed();
         this.snapshotStore.registerComponentSnapshot(this._snapshotRuntime(), key, codec);
         return this;
     }
 
     public unregisterComponentSnapshot<T>(key: ComponentCtor<T>): boolean
     {
+        this._ensureNotDestroyed();
         return this.snapshotStore.unregisterComponentSnapshot(key);
     }
 
     public registerResourceSnapshot<T, D = unknown>(key: ComponentCtor<T>, codec: SnapshotCodec<T, D>): this
     {
+        this._ensureNotDestroyed();
         this.snapshotStore.registerResourceSnapshot(this._snapshotRuntime(), key, codec);
         return this;
     }
 
     public unregisterResourceSnapshot<T>(key: ComponentCtor<T>): boolean
     {
+        this._ensureNotDestroyed();
         return this.snapshotStore.unregisterResourceSnapshot(key);
     }
 
     public snapshot(): WorldSnapshot
     {
+        this._ensureNotDestroyed();
         return this.snapshotStore.snapshot(this._snapshotRuntime());
     }
 
     public restore(snapshot: WorldSnapshot): void
     {
+        this._ensureNotDestroyed();
         this.snapshotStore.restore(this._snapshotRuntime(), snapshot);
         this.updateOverlay(this.stats(), this.statsHistory());
     }
@@ -250,17 +284,20 @@ export class World extends StatsOverlay implements WorldApi
     //#region ---------- Resources (singletons) ----------
     public setResource<T>(key: ComponentCtor<T>, value: T): void
     {
+        this._ensureNotDestroyed();
         this.resources.set(key, value);
     }
 
     public getResource<T>(key: ComponentCtor<T>): T | undefined
     {
+        this._ensureNotDestroyed();
         if (!this.resources.has(key)) return undefined;
         return this.resources.get(key) as T;
     }
 
     public requireResource<T>(key: ComponentCtor<T>): T
     {
+        this._ensureNotDestroyed();
         if (!this.resources.has(key)) {
             const name = this._formatCtor(key);
             throw new Error(
@@ -273,16 +310,19 @@ export class World extends StatsOverlay implements WorldApi
 
     public hasResource<T>(key: ComponentCtor<T>): boolean
     {
+        this._ensureNotDestroyed();
         return this.resources.has(key);
     }
 
     public removeResource<T>(key: ComponentCtor<T>): boolean
     {
+        this._ensureNotDestroyed();
         return this.resources.delete(key);
     }
 
     public initResource<T>(key: ComponentCtor<T>, factory: () => T): T
     {
+        this._ensureNotDestroyed();
         if (this.resources.has(key)) return this.resources.get(key) as T;
         const value = factory();
         this.resources.set(key, value);
@@ -293,16 +333,19 @@ export class World extends StatsOverlay implements WorldApi
     //#region ---------- Events (phase-scoped) ----------
     public emit<T>(key: ComponentCtor<T>, ev: T): void
     {
+        this._ensureNotDestroyed();
         this._events(key).emit(ev);
     }
 
     public events<T>(key: ComponentCtor<T>): EventChannel<T>
     {
+        this._ensureNotDestroyed();
         return this._events(key);
     }
 
     public drainEvents<T>(key: ComponentCtor<T>, fn: (ev: T) => void): void
     {
+        this._ensureNotDestroyed();
         const ch = this.eventChannels.get(key) as EventChannel<T> | undefined;
         if (!ch) return;
         ch.drain(fn);
@@ -310,6 +353,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public clearEvents<T>(key?: ComponentCtor<T>): void
     {
+        this._ensureNotDestroyed();
         if (key) {
             const ch = this.eventChannels.get(key);
             if (!ch) return;
@@ -324,6 +368,7 @@ export class World extends StatsOverlay implements WorldApi
     /** @internal Called by Schedule at phase boundaries */
     public swapEvents(): void
     {
+        this._ensureNotDestroyed();
         for (const ch of this.eventChannels.values()) ch.swapBuffers();
     }
     //#endregion
@@ -332,6 +377,7 @@ export class World extends StatsOverlay implements WorldApi
     //#region ---------- Entity lifecycle ----------
     public spawn(): Entity
     {
+        this._ensureNotDestroyed();
         this._ensureNotIterating("spawn");
         const entity = this.entities.create();
         // place in archetype 0
@@ -343,7 +389,7 @@ export class World extends StatsOverlay implements WorldApi
         return entity;
     }
 
-    public spawnMany(...items: ComponentCtorBundleItem[]): Entity
+    public spawnWith(...items: ComponentCtorBundleItem[]): Entity
     {
         const e = this.spawn();
         for (const [ctor, value] of items) this.add(e, ctor as any, value as any);
@@ -352,11 +398,13 @@ export class World extends StatsOverlay implements WorldApi
 
     public isAlive(e: Entity): boolean
     {
+        this._ensureNotDestroyed();
         return this.entities.isAlive(e);
     }
 
     public despawn(e: Entity): void
     {
+        this._ensureNotDestroyed();
         this._assertAlive(e, 'despawn');
         this._ensureNotIterating("despawn");
         this._removeFromArchetype(e);
@@ -372,6 +420,7 @@ export class World extends StatsOverlay implements WorldApi
     //#region ---------- Components ----------
     public has<T>(e: Entity, ctor: ComponentCtor<T>): boolean
     {
+        this._ensureNotDestroyed();
         const meta = this.entities.meta[e.id];
         if (!meta || !meta.alive || meta.gen !== e.gen) return false;
         const tid = typeId(ctor);
@@ -380,6 +429,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public get<T>(e: Entity, ctor: ComponentCtor<T>): T | undefined
     {
+        this._ensureNotDestroyed();
         const meta = this.entities.meta[e.id];
         if (!meta || !meta.alive || meta.gen !== e.gen) return undefined;
         const tid = typeId(ctor);
@@ -390,6 +440,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public set<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
+        this._ensureNotDestroyed();
         const op = `set(${this._formatCtor(ctor)})`;
         const meta = this._assertAlive(e, op);
 
@@ -402,6 +453,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public add<T>(e: Entity, ctor: ComponentCtor<T>, value: T): void
     {
+        this._ensureNotDestroyed();
         const op = `add(${this._formatCtor(ctor)})`;
         this._assertAlive(e, op);
         this._ensureNotIterating(op);
@@ -416,8 +468,11 @@ export class World extends StatsOverlay implements WorldApi
             return;
         }
 
-        const dstSig = mergeSignature(src.sig, tid);
-        const dst = this._getOrCreateArchetype(dstSig);
+        let dst = src.addEdges.get(tid);
+        if (!dst) {
+            dst = this._getOrCreateArchetype(mergeSignature(src.sig, tid));
+            src.addEdges.set(tid, dst);
+        }
 
         this._moveEntity(e, src, srcMeta.row, dst, (t: TypeId) => {
             if (t === tid) return value;
@@ -429,6 +484,7 @@ export class World extends StatsOverlay implements WorldApi
     {
         if (items.length === 0) return;
 
+        this._ensureNotDestroyed();
         this._assertAlive(e, "addMany");
         this._ensureNotIterating("addMany");
 
@@ -472,6 +528,7 @@ export class World extends StatsOverlay implements WorldApi
 
     public remove<T>(e: Entity, ctor: ComponentCtor<T>): void
     {
+        this._ensureNotDestroyed();
         const op = `remove(${this._formatCtor(ctor)})`;
         this._assertAlive(e, op);
         this._ensureNotIterating(op);
@@ -481,8 +538,11 @@ export class World extends StatsOverlay implements WorldApi
         const src = this.archetypes[srcMeta.arch]!;
         if (!src.has(tid)) return;
 
-        const dstSig = subtractSignature(src.sig, tid);
-        const dst = this._getOrCreateArchetype(dstSig);
+        let dst = src.removeEdges.get(tid);
+        if (!dst) {
+            dst = this._getOrCreateArchetype(subtractSignature(src.sig, tid));
+            src.removeEdges.set(tid, dst);
+        }
 
         this._moveEntity(e, src, srcMeta.row, dst, (t: TypeId) => {
             // copy all but removed, but dstSig guarantees t != tid
@@ -494,6 +554,7 @@ export class World extends StatsOverlay implements WorldApi
     {
         if (ctors.length === 0) return;
 
+        this._ensureNotDestroyed();
         this._assertAlive(e, "removeMany");
         this._ensureNotIterating("removeMany");
 
@@ -529,33 +590,46 @@ export class World extends StatsOverlay implements WorldApi
      * Query all entities having all required component types.
      * Iterates archetypes (tables) and yields SoA columns for cache-friendly loops.
      */
-    public query<A>(c1: ComponentCtor<A>): Iterable<QueryRow1<A>>;
-    public query<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryRow2<A, B>>;
-    public query<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryRow3<A, B, C>>;
-    public query<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryRow4<A, B, C, D>>;
-    public query<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryRow5<A, B, C, D, E>>;
-    public query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryRow6<A, B, C, D, E, F>>;
-    public query(...ctors: ComponentCtor<any>[]): Iterable<any>
+    public query<A>(c1: ComponentCtor<A>, filter?: QueryFilter): Iterable<QueryRow1<A>>;
+    public query<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, filter?: QueryFilter): Iterable<QueryRow2<A, B>>;
+    public query<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, filter?: QueryFilter): Iterable<QueryRow3<A, B, C>>;
+    public query<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, filter?: QueryFilter): Iterable<QueryRow4<A, B, C, D>>;
+    public query<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, filter?: QueryFilter): Iterable<QueryRow5<A, B, C, D, E>>;
+    public query<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, filter?: QueryFilter): Iterable<QueryRow6<A, B, C, D, E, F>>;
+    public query(...args: any[]): Iterable<any>
     {
-        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
+        const { ctors, filter } = World._splitArgs(args);
+        const { requested, needSorted, withoutSorted } = World._buildQueryTypeIds(ctors, filter);
 
-        function* gen(world: World): IterableIterator<any>
+        function* gen(world: World, archs: Archetype[]): IterableIterator<any>
         {
             world._iterateDepth++;
             try {
-                for (const a of world.archetypes) {
-                    if (!a) continue;
-                    if (!signatureHasAll(a.sig, needSorted)) continue;
+                for (const a of archs) {
+                    if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
 
                     // Return columns in requested order (c1,c2,c3...).
                     const cols = new Array<any[]>(requested.length);
                     for (let i = 0; i < requested.length; i++) cols[i] = a.column<any>(requested[i]!);
 
-                    for (let row = 0; row < a.entities.length; row++) {
-                        const e = a.entities[row]!;
-                        const out: any = { e };
-                        for (let i = 0; i < cols.length; i++) out[`c${i + 1}`] = cols[i]![row];
-                        yield out;
+                    // Use per-arity branches so V8 sees stable object shapes.
+                    const ents = a.entities;
+                    const len  = ents.length;
+                    switch (cols.length) {
+                        case 1: { const a0 = cols[0]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r] }; break; }
+                        case 2: { const a0 = cols[0]!, a1 = cols[1]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r], c2: a1[r] }; break; }
+                        case 3: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r], c2: a1[r], c3: a2[r] }; break; }
+                        case 4: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r], c2: a1[r], c3: a2[r], c4: a3[r] }; break; }
+                        case 5: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!, a4 = cols[4]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r], c2: a1[r], c3: a2[r], c4: a3[r], c5: a4[r] }; break; }
+                        case 6: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!, a4 = cols[4]!, a5 = cols[5]!; for (let r = 0; r < len; r++) yield { e: ents[r]!, c1: a0[r], c2: a1[r], c3: a2[r], c4: a3[r], c5: a4[r], c6: a5[r] }; break; }
+                        default: {
+                            for (let r = 0; r < len; r++) {
+                                const out: any = { e: ents[r]! };
+                                for (let i = 0; i < cols.length; i++) out[`c${i + 1}`] = cols[i]![r];
+                                yield out;
+                            }
+                            break;
+                        }
                     }
                 }
             } finally {
@@ -565,30 +639,35 @@ export class World extends StatsOverlay implements WorldApi
 
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
-        return { [Symbol.iterator]() { return gen(self); } };
+        return {
+            [Symbol.iterator]() {
+                self._ensureNotDestroyed();
+                return gen(self, self._matchingArchetypes(needSorted));
+            }
+        };
     }
 
     /**
      * Table query: yields one item per matching archetype (SoA columns + entity array).
      * This avoids allocating one object per entity row.
      */
-    public queryTables<A>(c1: ComponentCtor<A>): Iterable<QueryTable1<A>>;
-    public queryTables<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>): Iterable<QueryTable2<A, B>>;
-    public queryTables<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>): Iterable<QueryTable3<A, B, C>>;
-    public queryTables<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>): Iterable<QueryTable4<A, B, C, D>>;
-    public queryTables<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>): Iterable<QueryTable5<A, B, C, D, E>>;
-    public queryTables<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>): Iterable<QueryTable6<A, B, C, D, E, F>>;
-    public queryTables(...ctors: ComponentCtor<any>[]): Iterable<any>
+    public queryTables<A>(c1: ComponentCtor<A>, filter?: QueryFilter): Iterable<QueryTable1<A>>;
+    public queryTables<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, filter?: QueryFilter): Iterable<QueryTable2<A, B>>;
+    public queryTables<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, filter?: QueryFilter): Iterable<QueryTable3<A, B, C>>;
+    public queryTables<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, filter?: QueryFilter): Iterable<QueryTable4<A, B, C, D>>;
+    public queryTables<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, filter?: QueryFilter): Iterable<QueryTable5<A, B, C, D, E>>;
+    public queryTables<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, filter?: QueryFilter): Iterable<QueryTable6<A, B, C, D, E, F>>;
+    public queryTables(...args: any[]): Iterable<any>
     {
-        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
+        const { ctors, filter } = World._splitArgs(args);
+        const { requested, needSorted, withoutSorted } = World._buildQueryTypeIds(ctors, filter);
 
-        function* gen(world: World): IterableIterator<any>
+        function* gen(world: World, archs: Archetype[]): IterableIterator<any>
         {
             world._iterateDepth++;
             try {
-                for (const a of world.archetypes) {
-                    if (!a) continue;
-                    if (!signatureHasAll(a.sig, needSorted)) continue;
+                for (const a of archs) {
+                    if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
 
                     const out: any = { entities: a.entities };
                     for (let i = 0; i < requested.length; i++) {
@@ -603,45 +682,58 @@ export class World extends StatsOverlay implements WorldApi
 
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
-        return { [Symbol.iterator]() { return gen(self); } };
+        return {
+            [Symbol.iterator]() {
+                self._ensureNotDestroyed();
+                return gen(self, self._matchingArchetypes(needSorted));
+            }
+        };
     }
 
     /**
      * Callback query: calls `fn` for each matching entity row (no yield object allocations).
      */
     public queryEach<A>(c1: ComponentCtor<A>, fn: (e: Entity, c1: A) => void): void;
+    public queryEach<A>(c1: ComponentCtor<A>, filter: QueryFilter, fn: (e: Entity, c1: A) => void): void;
     public queryEach<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, fn: (e: Entity, c1: A, c2: B) => void): void;
+    public queryEach<A, B>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B) => void): void;
     public queryEach<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, fn: (e: Entity, c1: A, c2: B, c3: C) => void): void;
+    public queryEach<A, B, C>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C) => void): void;
     public queryEach<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D) => void): void;
+    public queryEach<A, B, C, D>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D) => void): void;
     public queryEach<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E) => void): void;
+    public queryEach<A, B, C, D, E>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E) => void): void;
     public queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
+    public queryEach<A, B, C, D, E, F>(c1: ComponentCtor<A>, c2: ComponentCtor<B>, c3: ComponentCtor<C>, c4: ComponentCtor<D>, c5: ComponentCtor<E>, c6: ComponentCtor<F>, filter: QueryFilter, fn: (e: Entity, c1: A, c2: B, c3: C, c4: D, c5: E, c6: F) => void): void;
     public queryEach(...args: any[]): void
     {
+        this._ensureNotDestroyed();
         const fn = args[args.length - 1] as (...params: unknown[]) => void;
-        const ctors = args.slice(0, args.length - 1) as ComponentCtor<any>[];
+        const rest = args.slice(0, args.length - 1);
+        const filter = World._isQueryFilter(rest[rest.length - 1]) ? rest.pop() as QueryFilter : undefined;
+        const ctors = rest as ComponentCtor<any>[];
 
-        const { requested, needSorted } = World._buildQueryTypeIds(ctors);
+        const { requested, needSorted, withoutSorted } = World._buildQueryTypeIds(ctors, filter);
+        const archs = this._matchingArchetypes(needSorted);
 
         this._iterateDepth++;
         try {
-            for (const a of this.archetypes) {
-                if (!a) continue;
-                if (!signatureHasAll(a.sig, needSorted)) continue;
+            for (const a of archs) {
+                if (withoutSorted.length > 0 && signatureHasAny(a.sig, withoutSorted)) continue;
 
                 const cols = new Array<any[]>(requested.length);
                 for (let i = 0; i < requested.length; i++) cols[i] = a.column<any>(requested[i]!);
 
-                for (let row = 0; row < a.entities.length; row++) {
-                    const e = a.entities[row]!;
-                    switch (cols.length) {
-                        case 1: fn(e, cols[0]![row]); break;
-                        case 2: fn(e, cols[0]![row], cols[1]![row]); break;
-                        case 3: fn(e, cols[0]![row], cols[1]![row], cols[2]![row]); break;
-                        case 4: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row]); break;
-                        case 5: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row], cols[4]![row]); break;
-                        case 6: fn(e, cols[0]![row], cols[1]![row], cols[2]![row], cols[3]![row], cols[4]![row], cols[5]![row]); break;
-                        default: fn(e, ...cols.map(c => c[row])); break;
-                    }
+                const ents = a.entities;
+                const len  = ents.length;
+                switch (cols.length) {
+                    case 1: { const a0 = cols[0]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r]); break; }
+                    case 2: { const a0 = cols[0]!, a1 = cols[1]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r], a1[r]); break; }
+                    case 3: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r], a1[r], a2[r]); break; }
+                    case 4: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r], a1[r], a2[r], a3[r]); break; }
+                    case 5: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!, a4 = cols[4]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r], a1[r], a2[r], a3[r], a4[r]); break; }
+                    case 6: { const a0 = cols[0]!, a1 = cols[1]!, a2 = cols[2]!, a3 = cols[3]!, a4 = cols[4]!, a5 = cols[5]!; for (let r = 0; r < len; r++) fn(ents[r]!, a0[r], a1[r], a2[r], a3[r], a4[r], a5[r]); break; }
+                    default: for (let r = 0; r < len; r++) fn(ents[r]!, ...cols.map(c => c[r])); break;
                 }
             }
         } finally {
@@ -671,22 +763,61 @@ export class World extends StatsOverlay implements WorldApi
     {
         this.archetypes.length = 0;
         this.archByKey.clear();
+        this._queryCache.clear();
         // Archetype 0: empty signature
         const archetype0 = new Archetype(0, []);
         this.archetypes[0] = archetype0;
         this.archByKey.set("", archetype0);
     }
 
-    private static _buildQueryTypeIds(ctors: ComponentCtor<any>[]): { requested: TypeId[]; needSorted: TypeId[] }
+    private static _isQueryFilter(v: unknown): v is QueryFilter
+    {
+        return typeof v === 'object' && v !== null && !Array.isArray(v);
+    }
+
+    private static _splitArgs(args: any[]): { ctors: ComponentCtor<any>[]; filter: QueryFilter | undefined }
+    {
+        const last = args[args.length - 1];
+        if (World._isQueryFilter(last)) {
+            return { ctors: args.slice(0, args.length - 1) as ComponentCtor<any>[], filter: last };
+        }
+        return { ctors: args as ComponentCtor<any>[], filter: undefined };
+    }
+
+    /**
+     * Returns the list of archetypes matching `needSorted` (a sorted, deduped TypeId array).
+     * Results are cached per query signature. Because archetypes are append-only, stale entries
+     * are extended incrementally — only newly-added archetypes are re-scanned.
+     */
+    private _matchingArchetypes(needSorted: TypeId[]): Archetype[]
+    {
+        const key = signatureKey(needSorted);
+        let entry = this._queryCache.get(key);
+        if (!entry) {
+            entry = { archs: [], checked: 0 };
+            this._queryCache.set(key, entry);
+        }
+        const total = this.archetypes.length;
+        for (let i = entry.checked; i < total; i++) {
+            const a = this.archetypes[i];
+            if (a && signatureHasAll(a.sig, needSorted)) entry.archs.push(a);
+        }
+        entry.checked = total;
+        return entry.archs;
+    }
+
+    private static _buildQueryTypeIds(
+        ctors: ComponentCtor<any>[],
+        filter?: QueryFilter
+    ): { requested: TypeId[]; needSorted: TypeId[]; withoutSorted: TypeId[] }
     {
         // Preserve caller order for (c1,c2,c3,...) mapping.
         const requested: TypeId[] = new Array(ctors.length);
         for (let i = 0; i < ctors.length; i++) requested[i] = typeId(ctors[i]!);
 
-        // Same ids, but sorted + deduped for signatureHasAll().
-        const needSorted: TypeId[] = requested.slice();
-        needSorted.sort((a, b) => a - b);
-
+        // needSorted = requested ids + any "with-only" ids (present but not returned), sorted + deduped.
+        const withOnlyIds: TypeId[] = filter?.with?.map(c => typeId(c)) ?? [];
+        const needSorted: TypeId[] = [...requested, ...withOnlyIds].sort((a, b) => a - b);
         let w = 0;
         for (let i = 0; i < needSorted.length; i++) {
             const v = needSorted[i]!;
@@ -694,7 +825,15 @@ export class World extends StatsOverlay implements WorldApi
         }
         needSorted.length = w;
 
-        return { requested, needSorted };
+        // withoutSorted: archetypes that have ANY of these are excluded.
+        const withoutSorted: TypeId[] = (filter?.without?.map(c => typeId(c)) ?? []).sort((a, b) => a - b);
+
+        return { requested, needSorted, withoutSorted };
+    }
+
+    private _ensureNotDestroyed(): void
+    {
+        if (this._destroyed) throw new Error("Cannot use a destroyed World.");
     }
 
     private _ensureNotIterating(op: string): void
@@ -765,8 +904,12 @@ export class World extends StatsOverlay implements WorldApi
                 return this.despawn(op.e);
             case "add":
                 return this.add(op.e, op.ctor, op.value);
+            case "addMany":
+                return this.addMany(op.e, ...op.items);
             case "remove":
                 return this.remove(op.e, op.ctor);
+            case "removeMany":
+                return this.removeMany(op.e, ...op.ctors);
         }
     }
 
