@@ -4,6 +4,9 @@ on:
   workflow_run:
     workflows: ["Test"]
     types: [completed]
+  push:
+    tags:
+      - 'v*.*.*'
 
 permissions:
   contents: write
@@ -14,20 +17,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  deploy-preview:
     if: >
+      github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'master' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout default branch
+      - name: Checkout master
         uses: actions/checkout@v4
         with:
           ref: master
           fetch-depth: 0
-      
+
       - name: Download docs-changed flag
         uses: actions/download-artifact@v4
         with:
@@ -36,7 +40,7 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Read docs-changed flag
         id: docsflag
         run: |
@@ -47,7 +51,7 @@ jobs:
       - name: Skip (no docs changes)
         if: env.DOCS_CHANGED != 'true'
         run: echo "No docs changes detected; skipping docs build & deploy."
-      
+
       - name: Download coverage badge from triggering run
         if: env.DOCS_CHANGED == 'true'
         uses: actions/download-artifact@v4
@@ -70,21 +74,55 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-docs.txt
 
-      - name: Build docs
+      - name: Configure git for mike
         if: env.DOCS_CHANGED == 'true'
-        env:
-          BRANCH: master
         run: |
-          export PDF_LINK="/archetype-ecs-lib/assets/document.pdf"
-          export EDIT_URI="blob/${BRANCH}/"
-          export DOC_BRANCH=${BRANCH}
-          export ENABLE_PDF_EXPORT=1
-          mkdocs build --clean --strict --config-file "mkdocs.yml"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Deploy to gh-pages
+      - name: Deploy preview docs
         if: env.DOCS_CHANGED == 'true'
-        uses: peaceiris/actions-gh-pages@v4
+        run: |
+          export PDF_LINK="/archetype-ecs-lib/preview/assets/document.pdf"
+          export EDIT_URI="blob/master/"
+          export ENABLE_PDF_EXPORT=1
+          mike deploy --push preview
+
+  deploy-release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout tag
+        uses: actions/checkout@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: public
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install mkdocs + plugins
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-docs.txt
+
+      - name: Configure git for mike
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy versioned docs
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          export PDF_LINK="/archetype-ecs-lib/${VERSION}/assets/document.pdf"
+          export EDIT_URI="blob/v${VERSION}/"
+          export ENABLE_PDF_EXPORT=1
+          mike deploy --push --update-aliases "${VERSION}" latest
+          mike set-default --push latest

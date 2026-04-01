@@ -45,6 +45,12 @@ Goal: harden the public API surface before freezing `WorldApi`.
 
 No breaking changes to `WorldApi` will be made after this release.
 
+#### Documentation
+
+- **Versioned docs** — documentation is now versioned using [mike](https://github.com/jimporter/mike). Each release tag (`v1.0.0`, `v1.1.0`, …) publishes a dedicated version at its own URL; the `latest` alias always points to the most recent stable release.
+- **Preview channel** — every push to `master` deploys a live `preview` version of the docs, reflecting unreleased changes.
+- **PDF per version** — each version (including `preview`) generates its own downloadable PDF.
+
 ---
 
 ## v0.6.1
