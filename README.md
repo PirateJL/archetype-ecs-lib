@@ -14,8 +14,8 @@ A tiny **archetype-based ECS** (Entity Component System) for TypeScript.
 Exports are defined in `index.ts`:
 - `Types`, `TypeRegistry`, `Commands`, `World`, `Schedule`
 
-> :exclamation: The full documentation is at [https://piratejl.github.io/archetype-ecs-lib/](https://piratejl.github.io/archetype-ecs-lib/)  
-> Can view the [Changelog here](https://piratejl.github.io/archetype-ecs-lib/changelog/)
+> :exclamation: The full documentation is at [https://piratejl.github.io/archetype-ecs-lib/](https://piratejl.github.io/archetype-ecs-lib/latest/)  
+> Can view the [Changelog here](https://piratejl.github.io/archetype-ecs-lib/latest/changelog/)
 
 ---
 
