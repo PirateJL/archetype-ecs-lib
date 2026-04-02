@@ -1,0 +1,21 @@
+/* Fix weasyprint PDF rendering: override Material theme's flex-based
+   highlighttable layout back to standard table display.
+   Without this, pages with many code blocks (e.g. Tutorial-6) are dropped
+   from weasyprint's box tree, causing missing anchors in strict mode. */
+.highlighttable { display: table !important; }
+.highlighttable tbody { display: table-row-group !important; }
+.highlighttable tr { display: table-row !important; }
+.highlighttable td { display: table-cell !important; }
+
+/* Full viewport canvas */
+.fullpage {
+    height: fit-content;
+}
+
+/* Fill it */
+.fullpage__frame {
+    width: 100vw;
+    height: 100vh;
+    border: 0;
+    display: block;
+}
