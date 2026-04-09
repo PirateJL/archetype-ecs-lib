@@ -1,4 +1,4 @@
-![Coverage](https://raw.githubusercontent.com/PirateJL/archetype-ecs-lib/refs/heads/gh-pages/assets/coverage.svg)
+![Coverage](https://piratejl.github.io/archetype-ecs-lib/latest/assets/coverage.svg)
 
 # Archetype ECS Lib
 
